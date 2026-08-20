@@ -253,3 +253,26 @@ jest dobra — zachowuje potoczne formy („gonna" zostaje „gonna").
 
 **Domyślny pozostaje Polski**, bo przy bardzo krótkich wypowiedziach automatyczne
 wykrywanie bywa zawodne (kilka polskich słów potrafi zostać uznane za czeskie).
+
+### Ikona
+
+`scripts/make_icon.py` robi `Resources/MICFLOW.icns` z obrazka źródłowego:
+przycina białe tło, nakłada maskę zaokrąglonego kwadratu (inaczej w Docku widać
+białe narożniki) i generuje wszystkie rozmiary dla `iconutil`.
+
+Maska jest o ~1,2% mniejsza od kadru — źródło ma wokół kształtu delikatny cień,
+który bez tego zostawał w narożnikach jako ciemne zadziory. Zawartość zajmuje
+824 z 1024 px, zgodnie z proporcją, jakiej macOS używa dla ikon aplikacji.
+
+### Pułapka: ścieżki bezwzględne zapamiętane w narzędziach
+
+Przeniesienie katalogu projektu psuje trzy rzeczy naraz, każdą po cichu:
+
+| Co | Objaw | Naprawa |
+|---|---|---|
+| `.venv/bin/pip` | `bad interpreter: no such file` | odtworzyć `.venv` |
+| Cache cmake | „CMakeCache.txt directory is different" | `build_whisper.sh` sam czyści |
+| `.build` SwiftPM | „module cache path" | `rm -rf .build` |
+
+Sama aplikacja jest odporna — `ModelLocator` liczy ścieżkę w czasie działania,
+a pakiet `.app` ma własny rpath i biblioteki w `Contents/Frameworks`.

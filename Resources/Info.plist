@@ -6,6 +6,8 @@
     <string>MICFLOW</string>
     <key>CFBundleDisplayName</key>
     <string>MICFLOW</string>
+    <key>CFBundleIconFile</key>
+    <string>MICFLOW</string>
     <key>CFBundleIdentifier</key>
     <string>local.micflow.app</string>
     <key>CFBundleExecutable</key>

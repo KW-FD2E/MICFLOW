@@ -17,6 +17,15 @@ if [ ! -x "$CMAKE" ]; then
 fi
 
 cd "$WHISPER"
+
+# Cache cmake zapamietuje sciezke bezwzgledna. Po przeniesieniu projektu
+# odwoluje sie do nieistniejacego katalogu i budowanie sie wywraca —
+# wtedy trzeba go wyrzucic i skonfigurowac od nowa.
+if [ -f build/CMakeCache.txt ] && ! grep -q "CMAKE_HOME_DIRECTORY:INTERNAL=$WHISPER\$" build/CMakeCache.txt; then
+    echo "==> Cache cmake wskazuje na inna sciezke — czyszcze build/"
+    rm -rf build
+fi
+
 "$CMAKE" -B build \
     -DCMAKE_BUILD_TYPE=Release \
     -DGGML_METAL=ON \

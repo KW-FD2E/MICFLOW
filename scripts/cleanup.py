@@ -143,11 +143,6 @@ def static_messages(language: str) -> list:
     return messages
 
 
-def build_prompt(tokenizer, raw: str, language: str = "pl"):
-    messages = static_messages(language) + [{"role": "user", "content": raw}]
-    return tokenizer.apply_chat_template(messages, add_generation_prompt=True)
-
-
 def make_generator():
     import copy
 

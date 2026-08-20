@@ -17,6 +17,13 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Framewor
 cp "$BIN" "$APP/Contents/MacOS/Micflow"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 
+# Ikona pakietu. Generowana ze zrodla przez scripts/make_icon.py.
+if [ -f "$ROOT/Resources/MICFLOW.icns" ]; then
+    cp "$ROOT/Resources/MICFLOW.icns" "$APP/Contents/Resources/MICFLOW.icns"
+else
+    echo "UWAGA: brak Resources/MICFLOW.icns — pakiet dostanie ikone domyslna." >&2
+fi
+
 # Zapisujemy katalog projektu w Info.plist, żeby aplikacja znalazła modele
 # i .venv także wtedy, gdy sam pakiet zostanie przeniesiony (np. do /Applications).
 /usr/libexec/PlistBuddy -c "Add :MicflowProjectRoot string $ROOT" "$APP/Contents/Info.plist" >/dev/null 2>&1 \

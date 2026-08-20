@@ -59,7 +59,7 @@ final class AudioRecorder {
         }
 
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("dyktowanie-\(Int(Date().timeIntervalSince1970)).wav")
+            .appendingPathComponent("micflow-\(Int(Date().timeIntervalSince1970)).wav")
 
         // Plik na dysku trzymamy jako PCM 16-bit; AVAudioFile sam zamienia
         // bufory float32 (processingFormat) na int16 przy zapisie.

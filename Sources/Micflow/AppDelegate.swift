@@ -43,6 +43,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         set { UserDefaults.standard.set(newValue, forKey: "sounds") }
     }
 
+    /// W trybie dwukliku nagrywanie trwa, dopóki użytkownik go nie przerwie —
+    /// łatwo o nim zapomnieć. Bez limitu próbki rosłyby w nieskończoność
+    /// (~64 kB na sekundę), a transkrypcja godzinnego nagrania trwałaby minuty.
+    private static let maximumRecordingSeconds: TimeInterval = 300
+    private var recordingLimitTimer: Timer?
+
     /// Transkrypcja liczy się poza głównym wątkiem, żeby nie zamrażać menu.
     private let transcribeQueue = DispatchQueue(label: "local.micflow.transcribe", qos: .userInitiated)
 
@@ -245,6 +251,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         do {
             try recorder.start()
             sounds.play(.start)
+            startRecordingLimit()
             updateIcon(recording: true)
             indicator.show(.listening)
             setStatus("Nagrywanie…")
@@ -256,6 +263,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func stopRecording() {
+        recordingLimitTimer?.invalidate()
+        recordingLimitTimer = nil
+
         guard let result = recorder.stop() else { return }
 
         // Poprzednie nagranie przestaje być potrzebne w chwili, gdy mamy nowe.
@@ -306,6 +316,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     self?.setStatus("Błąd: \(error.localizedDescription)")
                 }
             }
+        }
+    }
+
+    /// Automatycznie kończy nagranie po ustalonym czasie.
+    private func startRecordingLimit() {
+        recordingLimitTimer?.invalidate()
+        recordingLimitTimer = Timer.scheduledTimer(
+            withTimeInterval: Self.maximumRecordingSeconds,
+            repeats: false
+        ) { [weak self] _ in
+            guard let self, self.recorder.isRecording else { return }
+            NSLog("Osiągnięto limit \(Int(Self.maximumRecordingSeconds))s — kończę nagranie.")
+            self.stopRecording()
         }
     }
 
