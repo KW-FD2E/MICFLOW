@@ -45,15 +45,10 @@ if [ ! -x "$ROOT/.venv/bin/python" ]; then
 fi
 
 # Modele LLM trafiają do wspólnego cache Hugging Face, nie do katalogu projektu.
-echo "==> Pobieram modele Bielik (2,7 GB + 6,3 GB)"
+echo "==> Pobieram model Bielik (6,3 GB)"
 "$ROOT/.venv/bin/python" - <<'PY'
 from huggingface_hub import snapshot_download
-for repo in (
-    "vqstudio/Bielik-4.5B-v3.0-Instruct-MLX-4bit",
-    "speakleash/Bielik-11B-v3.0-Instruct-MLX-4bit",
-):
-    print(f"  {repo}")
-    snapshot_download(repo)
+snapshot_download("speakleash/Bielik-11B-v3.0-Instruct-MLX-4bit")
 PY
 
 echo "==> Buduję whisper.cpp"

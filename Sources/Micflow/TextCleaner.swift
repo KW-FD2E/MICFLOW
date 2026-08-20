@@ -2,7 +2,7 @@ import Foundation
 
 /// Model czyszczący tekst.
 ///
-/// Był tu wcześniej wybór między Bielikiem 4,5B a 11B, ale mniejszy wariant
+/// Był tu wcześniej wybór między dwoma wariantami Bielika, ale mniejszy z nich
 /// potrafił zmieniać sens wypowiedzi (np. „niech potwierdzi" → „potwierdź"),
 /// więc został usunięty. Przy dyktowaniu wiadomości to zbyt kosztowny błąd,
 /// żeby nadrabiać go szybkością.
