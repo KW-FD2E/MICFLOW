@@ -22,6 +22,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         set { UserDefaults.standard.set(newValue.rawValue, forKey: "injectionMethod") }
     }
 
+    private let sounds = SoundFeedback()
+    private var hotkeyMenuItems: [HotkeyChoice: NSMenuItem] = [:]
+    private var soundMenuItem: NSMenuItem?
+    private var loginMenuItem: NSMenuItem?
+
+    private var hotkeyChoice: HotkeyChoice {
+        get { HotkeyChoice(rawValue: UserDefaults.standard.string(forKey: "hotkey") ?? "") ?? .fn }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "hotkey") }
+    }
+
+    private var soundsEnabled: Bool {
+        get { UserDefaults.standard.object(forKey: "sounds") as? Bool ?? true }
+        set { UserDefaults.standard.set(newValue, forKey: "sounds") }
+    }
+
     /// Wybór modelu przeżywa restart aplikacji.
     private var selectedModel: CleanupModel {
         get { CleanupModel(rawValue: UserDefaults.standard.string(forKey: "cleanupModel") ?? "") ?? .fast }
@@ -39,7 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Permissions.requestMicrophone { [weak self] granted in
             guard let self else { return }
             if granted {
-                self.setStatus("Gotowe — przytrzymaj \(HotkeyMonitor.Key.currentDescription)")
+                self.setStatus("Gotowe — przytrzymaj \(hotkeyChoice.title)")
             } else {
                 self.setStatus("Brak dostępu do mikrofonu")
             }
@@ -52,9 +67,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         startCleaner(model: selectedModel)
 
+        sounds.setEnabled(soundsEnabled)
+
         hotkey.onPress = { [weak self] in self?.startRecording() }
         hotkey.onRelease = { [weak self] in self?.stopRecording() }
-        hotkey.start()
+        hotkey.start(choice: hotkeyChoice)
 
         if !Permissions.hasAccessibility(prompt: true) {
             setStatus("Przyznaj Accessibility, by działał skrót")
@@ -131,6 +148,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         methodItem.submenu = methodMenu
         menu.addItem(methodItem)
 
+        let hotkeyItem = NSMenuItem(title: "Skrót", action: nil, keyEquivalent: "")
+        let hotkeyMenu = NSMenu()
+        for choice in HotkeyChoice.allCases {
+            let item = NSMenuItem(title: choice.title, action: #selector(selectHotkey(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = choice.rawValue
+            item.state = (choice == hotkeyChoice) ? .on : .off
+            hotkeyMenu.addItem(item)
+            hotkeyMenuItems[choice] = item
+        }
+        hotkeyItem.submenu = hotkeyMenu
+        menu.addItem(hotkeyItem)
+
+        let sound = NSMenuItem(title: "Dźwięki", action: #selector(toggleSounds), keyEquivalent: "")
+        sound.target = self
+        sound.state = soundsEnabled ? .on : .off
+        menu.addItem(sound)
+        soundMenuItem = sound
+
+        let login = NSMenuItem(title: "Uruchamiaj przy starcie", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        login.target = self
+        login.state = LaunchAtLogin.isEnabled ? .on : .off
+        menu.addItem(login)
+        loginMenuItem = login
+
         menu.addItem(NSMenuItem.separator())
 
         let diagnostics = NSMenuItem(title: "Diagnostyka…", action: #selector(showDiagnostics), keyEquivalent: "")
@@ -195,6 +237,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         do {
             try recorder.start()
+            sounds.play(.start)
             updateIcon(recording: true)
             setStatus("Nagrywanie…")
         } catch {
@@ -207,6 +250,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let result = recorder.stop() else { return }
 
         lastRecordingURL = result.url
+        sounds.play(.stop)
         updateIcon(recording: false)
 
         let seconds = String(format: "%.1f", result.duration)
@@ -317,7 +361,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Czyszczenie:    \(cleaner.model.title)
         Stan modelu:    \(cleaner.model == .disabled ? "wyłączone" : (cleaner.isReady ? "gotowy" : "NIEGOTOWY"))
         Wstawianie:     \(injectionMethod.title)
-        Skrót:          \(HotkeyMonitor.Key.currentDescription)
+        Skrót:          \(hotkeyChoice.title)
+        Skrót zadziałał: \(hotkey.pressCount) raz(y)
+        Ostatni klawisz: \(hotkey.lastSeenKeyCode.map(String.init) ?? "żaden nie dotarł")
+        Przy starcie:   \(LaunchAtLogin.isEnabled ? "TAK" : "nie")
+        Dźwięki:        \(soundsEnabled ? "włączone" : "wyłączone")
 
         Ścieżka aplikacji:
         \(Bundle.main.bundlePath)
@@ -346,6 +394,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else if response == .alertThirdButtonReturn {
             Permissions.openAccessibilitySettings()
         }
+    }
+
+    @objc private func selectHotkey(_ sender: NSMenuItem) {
+        guard
+            let raw = sender.representedObject as? String,
+            let choice = HotkeyChoice(rawValue: raw)
+        else { return }
+
+        hotkeyChoice = choice
+        for (candidate, item) in hotkeyMenuItems {
+            item.state = (candidate == choice) ? .on : .off
+        }
+
+        hotkey.start(choice: choice)
+        setStatus("Skrót: przytrzymaj \(choice.title)")
+    }
+
+    @objc private func toggleSounds() {
+        soundsEnabled.toggle()
+        sounds.setEnabled(soundsEnabled)
+        soundMenuItem?.state = soundsEnabled ? .on : .off
+        if soundsEnabled { sounds.play(.start) }
+    }
+
+    @objc private func toggleLaunchAtLogin() {
+        let target = !LaunchAtLogin.isEnabled
+
+        if let problem = LaunchAtLogin.set(target) {
+            setStatus(problem)
+            NSLog("Element logowania: \(problem)")
+        } else {
+            setStatus(target ? "Będzie uruchamiane przy starcie" : "Nie będzie uruchamiane przy starcie")
+        }
+
+        loginMenuItem?.state = LaunchAtLogin.isEnabled ? .on : .off
     }
 
     @objc private func selectMethod(_ sender: NSMenuItem) {

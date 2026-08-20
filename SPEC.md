@@ -147,3 +147,22 @@ Szczegóły, które okazały się istotne:
 - Command Mode (edycja głosowa zaznaczonego tekstu)
 - Personalizacja słownika użytkownika
 - Wersje na Windows/iOS
+
+### Etap 8 — dopracowanie
+
+- **Skrót**: domyślnie `fn`, przełączalny w menu (fn / prawy ⌘ / prawy ⌥).
+  Wymaga ustawienia systemowego „Naciśnięcie klawisza 🌐" na „Nie wykonuj nic",
+  inaczej macOS przechwytuje klawisz na panel emoji (`AppleFnUsageType`).
+- **Uruchamianie przy starcie**: `SMAppService.mainApp` (macOS 13+).
+- **Dźwięki**: syntezowane, nie systemowe — dwa dźwięki E5↔B5 z miękkim atakiem
+  (8 ms) i wykładniczym wybrzmieniem, plus cicha oktawa dla ciepła barwy.
+  Start rośnie, koniec opada.
+- **Diagnostyka** pokazuje licznik zadziałań skrótu i ostatni kod klawisza,
+  co pozwala odróżnić „system nie przepuszcza zdarzeń" od błędu w aplikacji.
+
+### Pułapka: uprawnienie Accessibility a podpis kodu
+
+macOS wiąże zgodę Accessibility z podpisem kodu. Przy podpisie ad-hoc **każda
+zmiana kodu zmienia cdhash i unieważnia zgodę**, przy czym aplikacja nadal
+figuruje jako zaznaczona w Ustawieniach. Trzeba ją usunąć `[-]` i dodać `[+]`
+ponownie. `scripts/bundle.sh` wykrywa zmianę cdhash i o tym przypomina.

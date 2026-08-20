@@ -1,27 +1,60 @@
 import AppKit
 
-/// Nasłuchuje globalnie na przytrzymanie wybranego klawisza modyfikującego
-/// (push-to-talk). Wymaga uprawnienia Accessibility / Input Monitoring.
-final class HotkeyMonitor {
-    /// Klawisz push-to-talk. Prawy ⌘ — celowo NIE prawy Alt, bo na polskim
-    /// układzie Alt służy do wpisywania znaków diakrytycznych (ą, ć, ę…).
-    enum Key {
-        static let rightCommand: UInt16 = 54
+/// Klawisz push-to-talk. Wszystkie warianty to klawisze modyfikujące,
+/// bo tylko one dają czysty sygnał „wciśnięty / puszczony" bez powtarzania.
+enum HotkeyChoice: String, CaseIterable {
+    case fn
+    case rightCommand
+    case rightOption
 
-        static let current = rightCommand
-        static let currentFlag: NSEvent.ModifierFlags = .command
-        static let currentDescription = "prawy ⌘"
+    var keyCode: UInt16 {
+        switch self {
+        case .fn:           return 63   // kVK_Function
+        case .rightCommand: return 54   // kVK_RightCommand
+        case .rightOption:  return 61   // kVK_RightOption
+        }
     }
 
+    var flag: NSEvent.ModifierFlags {
+        switch self {
+        case .fn:           return .function
+        case .rightCommand: return .command
+        case .rightOption:  return .option
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .fn:           return "fn / 🌐"
+        case .rightCommand: return "prawy ⌘"
+        case .rightOption:  return "prawy ⌥ (kolizja z polskimi znakami)"
+        }
+    }
+}
+
+/// Nasłuchuje globalnie na przytrzymanie klawisza push-to-talk.
+/// Wymaga uprawnienia Accessibility / Input Monitoring.
+final class HotkeyMonitor {
     private var globalMonitor: Any?
     private var localMonitor: Any?
     private var isDown = false
 
+    private(set) var choice: HotkeyChoice = .fn
+
+    /// Ile razy skrót zadziałał. W diagnostyce pozwala odróżnić „monitor nie
+    /// dostaje zdarzeń" od „dostaje, ale coś dalej nie działa".
+    private(set) var pressCount = 0
+
+    /// Ostatni kod klawisza modyfikującego, jaki w ogóle dotarł do monitora —
+    /// pokazuje, czy system w ogóle przepuszcza zdarzenia.
+    private(set) var lastSeenKeyCode: UInt16?
+
     var onPress: (() -> Void)?
     var onRelease: (() -> Void)?
 
-    func start() {
-        guard globalMonitor == nil else { return }
+    func start(choice: HotkeyChoice) {
+        stop()
+        self.choice = choice
 
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             self?.handle(event)
@@ -44,13 +77,16 @@ final class HotkeyMonitor {
     }
 
     private func handle(_ event: NSEvent) {
-        guard event.keyCode == Key.current else { return }
+        lastSeenKeyCode = event.keyCode
 
-        let pressed = event.modifierFlags.contains(Key.currentFlag)
+        guard event.keyCode == choice.keyCode else { return }
+
+        let pressed = event.modifierFlags.contains(choice.flag)
         guard pressed != isDown else { return }
         isDown = pressed
 
         if pressed {
+            pressCount += 1
             onPress?()
         } else {
             onRelease?()
