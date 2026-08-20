@@ -38,7 +38,7 @@ codesign --force --sign - --identifier local.dyktowanie.app "$TARGET"
 
 echo "Zainstalowano: $TARGET"
 echo
-echo "UWAGA: to nowa lokalizacja, więc uprawnienie Accessibility trzeba"
-echo "przyznać dla niej od nowa:"
+echo "UWAGA: podpis kodu sie zmienil, wiec zgoda Accessibility wygasla."
+echo "Trzeba ja przyznac od nowa:"
 echo "  Ustawienia → Prywatność i ochrona → Dostępność"
 echo "  usuń stary wpis [-], dodaj [+] i wskaż: $TARGET"
