@@ -13,7 +13,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var lastTranscript: String?
 
     private let cleaner = TextCleaner()
+    private let injector = TextInjector()
     private var modelMenuItems: [CleanupModel: NSMenuItem] = [:]
+    private var methodMenuItems: [InjectionMethod: NSMenuItem] = [:]
+
+    private var injectionMethod: InjectionMethod {
+        get { InjectionMethod(rawValue: UserDefaults.standard.string(forKey: "injectionMethod") ?? "") ?? .typing }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "injectionMethod") }
+    }
 
     /// Wybór modelu przeżywa restart aplikacji.
     private var selectedModel: CleanupModel {
@@ -110,6 +117,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         modelItem.submenu = modelMenu
         menu.addItem(modelItem)
+
+        let methodItem = NSMenuItem(title: "Wstawianie tekstu", action: nil, keyEquivalent: "")
+        let methodMenu = NSMenu()
+        for method in InjectionMethod.allCases {
+            let item = NSMenuItem(title: method.title, action: #selector(selectMethod(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = method.rawValue
+            item.state = (method == injectionMethod) ? .on : .off
+            methodMenu.addItem(item)
+            methodMenuItems[method] = item
+        }
+        methodItem.submenu = methodMenu
+        menu.addItem(methodItem)
 
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Zakończ", action: #selector(quit), keyEquivalent: "q"))
@@ -249,9 +269,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         DispatchQueue.main.async { [weak self] in
-            self?.lastTranscript = cleaned
-            self?.setStatus(cleaned)
+            self?.finish(text: cleaned)
         }
+    }
+
+    /// Ostatni krok: tekst trafia tam, gdzie stoi kursor użytkownika.
+    private func finish(text: String) {
+        lastTranscript = text
+
+        guard injectionMethod != .none else {
+            setStatus(text)
+            return
+        }
+
+        let method = injectionMethod
+
+        // Wpisywanie idzie porcjami z przerwami, więc nie może blokować menu.
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else { return }
+            do {
+                try self.injector.inject(text, method: method)
+                DispatchQueue.main.async { self.setStatus("Wstawiono: \(text)") }
+            } catch {
+                // Tekst zostaje w menu i w schowku — użytkownik go nie traci.
+                NSLog("Wstawianie nieudane: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
+                    self.setStatus("\(error.localizedDescription) Tekst jest w schowku.")
+                }
+            }
+        }
+    }
+
+    @objc private func selectMethod(_ sender: NSMenuItem) {
+        guard
+            let raw = sender.representedObject as? String,
+            let method = InjectionMethod(rawValue: raw)
+        else { return }
+
+        injectionMethod = method
+        for (candidate, item) in methodMenuItems {
+            item.state = (candidate == method) ? .on : .off
+        }
+        setStatus(method.title)
     }
 
     @objc private func selectModel(_ sender: NSMenuItem) {

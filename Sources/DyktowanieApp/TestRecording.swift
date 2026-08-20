@@ -1,4 +1,5 @@
 import AVFoundation
+import ApplicationServices
 import Foundation
 
 extension Array {
@@ -10,6 +11,35 @@ extension Array {
 /// Nagrywanie z linii poleceń — służy do sprawdzenia, że mikrofon faktycznie
 /// zapisuje sygnał, a nie ciszę, bez klikania w menu.
 enum TestRecording {
+    /// Sprawdza wstawianie tekstu. Po odliczeniu użytkownik ma czas, żeby
+    /// kliknąć w docelowe pole tekstowe w innej aplikacji.
+    static func inject(text: String, method: InjectionMethod, delay: Int = 5) {
+        guard AXIsProcessTrusted() else {
+            print("BŁĄD: brak uprawnienia Accessibility.")
+            print("Przyznaj je w Ustawieniach → Prywatność i ochrona → Dostępność,")
+            print("a potem uruchom test ponownie.")
+            exit(1)
+        }
+
+        print("Metoda: \(method.title)")
+        print("Kliknij teraz w pole tekstowe, w którym ma pojawić się tekst.")
+        for remaining in stride(from: delay, to: 0, by: -1) {
+            print("  \(remaining)…")
+            Thread.sleep(forTimeInterval: 1)
+        }
+
+        do {
+            try TextInjector().inject(text, method: method)
+            print("Wysłano. Sprawdź, czy tekst pojawił się poprawnie.")
+            // Schowek przywraca się z opóźnieniem, więc dajemy procesowi dożyć.
+            Thread.sleep(forTimeInterval: 1)
+            exit(0)
+        } catch {
+            print("BŁĄD: \(error.localizedDescription)")
+            exit(1)
+        }
+    }
+
     /// Pełny łańcuch: WAV → whisper → Bielik. Sprawdza spięcie wszystkich
     /// elementów bez potrzeby dostępu do mikrofonu.
     static func pipeline(path: String, model: CleanupModel) {

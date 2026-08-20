@@ -116,6 +116,24 @@ modelu 6,3 GB daje ~15,8 tok/s) — szybciej się z niego nie da.
 - Ładowanie modelu: 8,4 s na zimno, 0,5 s z cache dyskowego — dlatego model wczytuje się w tle przy starcie
 - Transkrypcja: ~100× realtime z VAD (266 s audio → 2,7 s)
 
+### Etap 5 — wstawianie tekstu
+
+Dwie metody, przełączane w menu (**Wstawianie tekstu**):
+
+- **Wpisywanie** (domyślne) — `CGEvent` z ustawionym napisem Unicode, porcjami po
+  20 jednostek UTF-16. Polskie znaki działają niezależnie od układu klawiatury,
+  bo nie mapujemy kodów klawiszy. Nie rusza schowka.
+- **Wklejanie** — podmiana schowka i `Cmd+V`, potem przywrócenie poprzedniej
+  zawartości po 400 ms. Szybsze przy długim tekście.
+
+Szczegóły, które okazały się istotne:
+- flagi zdarzeń są zerowane — bez tego wpisywanie dziedziczy modyfikatory
+  trzymane akurat przez użytkownika i zamiast tekstu idą skróty klawiszowe
+- porcje nie mogą rozcinać par zastępczych UTF-16 (emoji)
+- wstawianie idzie poza głównym wątkiem, bo przerwy między porcjami
+  zablokowałyby menu
+- gdy wstawianie zawiedzie, tekst ląduje w schowku — użytkownik go nie traci
+
 ### Znane drobiazgi
 
 - Ostrzeżenie linkera o `macOS-13.0` vs `26.0` — biblioteki whisper.cpp są budowane pod SDK hosta. Nieszkodliwe lokalnie; przy dystrybucji ustawić `CMAKE_OSX_DEPLOYMENT_TARGET`.

@@ -18,6 +18,11 @@ if let index = CommandLine.arguments.firstIndex(of: "--test-record") {
     }
     let model = CleanupModel(rawValue: CommandLine.arguments[safe: index + 2] ?? "fast") ?? .fast
     TestRecording.pipeline(path: path, model: model)
+} else if let index = CommandLine.arguments.firstIndex(of: "--test-inject") {
+    let text = CommandLine.arguments[safe: index + 1]
+        ?? "Zażółć gęślą jaźń — ĄĆĘŁŃÓŚŹŻ, test wpisywania 123."
+    let method = InjectionMethod(rawValue: CommandLine.arguments[safe: index + 2] ?? "typing") ?? .typing
+    TestRecording.inject(text: text, method: method)
 } else {
     let app = NSApplication.shared
     let delegate = AppDelegate()
