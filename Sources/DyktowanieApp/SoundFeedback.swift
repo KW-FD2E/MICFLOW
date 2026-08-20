@@ -28,20 +28,42 @@ final class SoundFeedback {
     init() {
         engine.attach(player)
 
-        let format = engine.mainMixerNode.outputFormat(forBus: 0)
+        // Format podajemy jawnie. Odpytanie miksera przed startem silnika
+        // potrafi zwrócić 0 Hz, co dawało bufory o zerowej długości — czyli ciszę.
+        guard let format = AVAudioFormat(
+            commonFormat: .pcmFormatFloat32,
+            sampleRate: 44_100,
+            channels: 2,
+            interleaved: false
+        ) else {
+            NSLog("Dźwięki wyłączone — nie udało się utworzyć formatu audio.")
+            isEnabled = false
+            return
+        }
+
         engine.connect(player, to: engine.mainMixerNode, format: format)
 
         for cue in [Cue.start, Cue.stop] {
-            buffers[cue] = render(cue: cue, format: format)
+            guard let buffer = render(cue: cue, format: format), buffer.frameLength > 0 else {
+                NSLog("Dźwięki: nie udało się wygenerować sygnału \(cue).")
+                continue
+            }
+            buffers[cue] = buffer
         }
 
         do {
             try engine.start()
             player.play()
+            NSLog("Dźwięki gotowe: \(buffers.count) sygnały, \(Int(format.sampleRate)) Hz")
         } catch {
             NSLog("Dźwięki wyłączone — nie udało się uruchomić wyjścia audio: \(error.localizedDescription)")
             isEnabled = false
         }
+    }
+
+    /// Czy syntezowane sygnały faktycznie powstały i silnik gra.
+    var isWorking: Bool {
+        engine.isRunning && buffers.count == 2
     }
 
     func setEnabled(_ enabled: Bool) {

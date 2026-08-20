@@ -365,7 +365,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Skrót zadziałał: \(hotkey.pressCount) raz(y)
         Ostatni klawisz: \(hotkey.lastSeenKeyCode.map(String.init) ?? "żaden nie dotarł")
         Przy starcie:   \(LaunchAtLogin.isEnabled ? "TAK" : "nie")
-        Dźwięki:        \(soundsEnabled ? "włączone" : "wyłączone")
+        Dźwięki:        \(soundsEnabled ? "włączone" : "wyłączone")\(sounds.isWorking ? "" : " — silnik audio NIE działa")
 
         Ścieżka aplikacji:
         \(Bundle.main.bundlePath)
