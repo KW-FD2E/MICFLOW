@@ -37,3 +37,19 @@ done
 codesign --force --sign - --identifier local.dyktowanie.app "$APP"
 
 echo "Zbudowano: $APP"
+
+# macOS wiąże uprawnienie Accessibility z podpisem kodu. Przy podpisie ad-hoc
+# każda zmiana kodu zmienia cdhash i uprawnienie przestaje obowiązywać —
+# przy czym w Ustawieniach aplikacja nadal wygląda na zaznaczoną.
+HASH_FILE="$ROOT/build/.last-cdhash"
+CURRENT_HASH="$(codesign -d --verbose=4 "$APP" 2>&1 | awk -F'=' '/^CDHash=/{print $2}')"
+PREVIOUS_HASH="$(cat "$HASH_FILE" 2>/dev/null || true)"
+echo "$CURRENT_HASH" > "$HASH_FILE"
+
+if [ -n "$PREVIOUS_HASH" ] && [ "$CURRENT_HASH" != "$PREVIOUS_HASH" ]; then
+    echo
+    echo "UWAGA: podpis się zmienił — uprawnienie Accessibility wygasło."
+    echo "Ustawienia → Prywatność i ochrona → Dostępność:"
+    echo "  usuń Dyktowanie przyciskiem [-], dodaj ponownie [+], wskaż:"
+    echo "  $APP"
+fi

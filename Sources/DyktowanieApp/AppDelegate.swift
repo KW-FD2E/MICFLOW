@@ -132,6 +132,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(methodItem)
 
         menu.addItem(NSMenuItem.separator())
+
+        let diagnostics = NSMenuItem(title: "Diagnostyka…", action: #selector(showDiagnostics), keyEquivalent: "")
+        diagnostics.target = self
+        menu.addItem(diagnostics)
+
+        menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: "Zakończ", action: #selector(quit), keyEquivalent: "q"))
 
         item.menu = menu
@@ -251,16 +257,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// transkrypcję — lepszy niedoskonały tekst niż żaden.
     private func clean(text: String) {
         let started = Date()
-        let cleaned: String
+        var cleaned = text
         do {
             cleaned = try cleaner.clean(text: text)
         } catch {
+            // Nieudane czyszczenie nie może wstrzymać wstawiania — użytkownik
+            // dostaje wtedy surową transkrypcję, ale dostaje ją tam, gdzie chciał.
             NSLog("Czyszczenie nieudane, zostaje surowy tekst: \(error.localizedDescription)")
-            DispatchQueue.main.async { [weak self] in
-                self?.lastTranscript = text
-                self?.setStatus(text)
-            }
-            return
         }
 
         if cleaner.model != .disabled {
@@ -299,6 +302,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     self.setStatus("\(error.localizedDescription) Tekst jest w schowku.")
                 }
             }
+        }
+    }
+
+    /// Zbiera stan wszystkich elementów w jednym miejscu — przy problemach
+    /// łatwiej wskazać, który krok pipeline'u nie działa.
+    @objc private func showDiagnostics() {
+        let accessibility = Permissions.hasAccessibility(prompt: false)
+
+        var report = """
+        Accessibility:  \(accessibility ? "TAK" : "NIE — bez tego skrót i wpisywanie nie zadziałają")
+        Mikrofon:       \(Permissions.hasMicrophone ? "TAK" : "NIE")
+        Model Whisper:  \(transcriber != nil ? "wczytany" : "BRAK")
+        Czyszczenie:    \(cleaner.model.title)
+        Stan modelu:    \(cleaner.model == .disabled ? "wyłączone" : (cleaner.isReady ? "gotowy" : "NIEGOTOWY"))
+        Wstawianie:     \(injectionMethod.title)
+        Skrót:          \(HotkeyMonitor.Key.currentDescription)
+
+        Ścieżka aplikacji:
+        \(Bundle.main.bundlePath)
+        """
+
+        if let transcript = lastTranscript {
+            report += "\n\nOstatni tekst:\n\(transcript)"
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "Diagnostyka"
+        alert.informativeText = report
+        alert.addButton(withTitle: "Kopiuj i zamknij")
+        alert.addButton(withTitle: "Zamknij")
+
+        if !accessibility {
+            alert.addButton(withTitle: "Otwórz ustawienia")
+        }
+
+        NSApp.activate(ignoringOtherApps: true)
+        let response = alert.runModal()
+
+        if response == .alertFirstButtonReturn {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(report, forType: .string)
+        } else if response == .alertThirdButtonReturn {
+            Permissions.openAccessibilitySettings()
         }
     }
 
