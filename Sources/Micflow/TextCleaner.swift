@@ -48,12 +48,13 @@ final class TextCleaner {
     func start() throws {
         shutdown()
 
-        let root = ModelLocator.projectRoot
-        let python = root.appendingPathComponent(".venv/bin/python")
-        let script = root.appendingPathComponent("scripts/cleanup.py")
+        let python = ModelLocator.pythonExecutable
 
         guard FileManager.default.fileExists(atPath: python.path) else {
             throw CleanerError.pythonMissing(python.path)
+        }
+        guard let script = ModelLocator.cleanupScript() else {
+            throw CleanerError.pythonMissing("cleanup.py")
         }
 
         let process = Process()

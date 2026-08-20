@@ -276,3 +276,39 @@ Przeniesienie katalogu projektu psuje trzy rzeczy naraz, każdą po cichu:
 
 Sama aplikacja jest odporna — `ModelLocator` liczy ścieżkę w czasie działania,
 a pakiet `.app` ma własny rpath i biblioteki w `Contents/Frameworks`.
+
+
+### Rozdzielenie kodu od danych działania
+
+Katalog projektu przenoszony był trzy razy i **za każdym razem psuł zainstalowaną
+aplikację** — bo trzymała w `Info.plist` ścieżkę do modeli i `.venv`.
+
+Teraz wszystko, czego aplikacja potrzebuje w czasie działania, leży w
+`~/Library/Application Support/MICFLOW/`:
+
+| Co | Gdzie |
+|---|---|
+| Modele Whisper i VAD | `~/Library/Application Support/MICFLOW/models/` |
+| Środowisko Pythona (MLX) | `~/Library/Application Support/MICFLOW/venv/` |
+| `cleanup.py` | wewnątrz pakietu `.app` — zawsze zgodny z binarką |
+| Model Bielik | cache Hugging Face (`~/.cache/huggingface`) |
+
+W katalogu projektu zostaje sam kod. Sprawdzone: przy całkowicie usuniętym
+katalogu projektu pełny pipeline nadal działa.
+
+`.venv` jest **odtwarzany**, nie kopiowany — jego skrypty mają wpisane ścieżki
+bezwzględne, więc przeniesienie by go zepsuło. Z tego samego powodu `setup.sh`
+używa `python -m pip` zamiast `pip`.
+
+### Przekazanie aplikacji na inny komputer
+
+Skopiowanie samego pakietu `.app` **nie zadziała**:
+
+- poza pakietem leży ~6,9 GB danych (modele Whispera, Bielik, środowisko Pythona)
+- podpis jest ad-hoc, bez Team ID — Gatekeeper zablokuje plik przyniesiony z innego Maca
+- `.venv` zawiera ścieżki z nazwą użytkownika i nie zadziała na innym koncie
+
+Działa natomiast przekazanie **repozytorium** i uruchomienie `scripts/setup.sh`,
+który pobiera zależności, buduje i instaluje. Wymagania: Mac z Apple Silicon
+(MLX i Metal), Xcode Command Line Tools, `python3`, ~7 GB do pobrania.
+Aplikacja zbudowana lokalnie nie podlega kwarantannie Gatekeepera.

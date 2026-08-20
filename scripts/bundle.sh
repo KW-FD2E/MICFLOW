@@ -24,10 +24,9 @@ else
     echo "UWAGA: brak Resources/MICFLOW.icns — pakiet dostanie ikone domyslna." >&2
 fi
 
-# Zapisujemy katalog projektu w Info.plist, żeby aplikacja znalazła modele
-# i .venv także wtedy, gdy sam pakiet zostanie przeniesiony (np. do /Applications).
-/usr/libexec/PlistBuddy -c "Add :MicflowProjectRoot string $ROOT" "$APP/Contents/Info.plist" >/dev/null 2>&1 \
-    || /usr/libexec/PlistBuddy -c "Set :MicflowProjectRoot $ROOT" "$APP/Contents/Info.plist"
+# Skrypt czyszczacy jedzie w pakiecie - dzieki temu jest zawsze w wersji
+# zgodnej z binarka i nie zalezy od tego, gdzie lezy katalog projektu.
+cp "$ROOT/scripts/cleanup.py" "$APP/Contents/Resources/cleanup.py"
 
 # Biblioteki whisper.cpp/ggml. Binarka ma rpath @executable_path/../Frameworks,
 # a same dylib-y odwołują się do siebie przez @rpath, więc rozwiążą się tutaj.

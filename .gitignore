@@ -5,12 +5,12 @@ DerivedData/
 .DS_Store
 build/
 
-# Zależności i modele odtwarzane przez scripts/setup.sh — łącznie ~900 MB,
-# nie ma powodu trzymać ich w historii repozytorium.
+# Zrodla whisper.cpp i cmake — odtwarzane przez scripts/setup.sh.
 vendor/
-models/
 
-# Środowisko Pythona dla MLX — odtwarzane przez scripts/setup.sh
-.venv/
 __pycache__/
 *.pyc
+
+# Modele i srodowisko Pythona nie leza juz w projekcie, tylko w
+# ~/Library/Application Support/MICFLOW — dzieki temu przeniesienie
+# katalogu z kodem nie psuje zainstalowanej aplikacji.
