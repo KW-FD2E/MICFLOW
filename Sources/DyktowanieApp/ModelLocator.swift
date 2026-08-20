@@ -45,6 +45,13 @@ enum ModelLocator {
     /// psuło aplikację — szukała modeli tam, gdzie stała w chwili kompilacji.
     /// Teraz idziemy w górę od pakietu .app, który leży w <projekt>/build/.
     static let projectRoot: URL = {
+        // Ścieżka wpisana przez scripts/bundle.sh — jedyna, która przeżywa
+        // przeniesienie samego pakietu .app (np. instalację w /Applications).
+        if let declared = Bundle.main.object(forInfoDictionaryKey: "DyktowanieProjectRoot") as? String,
+           FileManager.default.fileExists(atPath: (declared as NSString).appendingPathComponent("Package.swift")) {
+            return URL(fileURLWithPath: declared)
+        }
+
         let bundle = Bundle.main.bundleURL          // <projekt>/build/Dyktowanie.app
         let candidate = bundle
             .deletingLastPathComponent()            // <projekt>/build

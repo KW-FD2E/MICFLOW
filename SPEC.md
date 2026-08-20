@@ -186,3 +186,18 @@ ponownie. `scripts/bundle.sh` wykrywa zmianę cdhash i o tym przypomina.
 kompilacji — przeniesienie folderu projektu psuło wyszukiwanie modeli i `.venv`.
 Teraz liczy się od położenia pakietu `.app` (`<projekt>/build/Dyktowanie.app`),
 z weryfikacją po obecności `Package.swift`.
+
+### Instalacja i uruchamianie bez terminala
+
+`scripts/install.sh` kopiuje pakiet do `~/Applications` — nie do `/Applications`,
+bo to wymaga przynależności do grupy `admin`, której konto mieć nie musi.
+Z `~/Applications` aplikacja jest widoczna w Launchpadzie, Spotlighcie i można
+ją przeciągnąć do Docka.
+
+Katalog `build/` nie nadaje się na docelową lokalizację, bo `bundle.sh` kasuje
+go przy każdej przebudowie.
+
+Ponieważ zainstalowany pakiet stoi poza katalogiem projektu, `bundle.sh` wpisuje
+ścieżkę projektu do `Info.plist` pod kluczem `DyktowanieProjectRoot`.
+`ModelLocator` czyta ją w pierwszej kolejności — bez tego zainstalowana kopia
+nie znalazłaby modeli ani `.venv`.

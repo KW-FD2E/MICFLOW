@@ -17,6 +17,11 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Framewor
 cp "$BIN" "$APP/Contents/MacOS/DyktowanieApp"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 
+# Zapisujemy katalog projektu w Info.plist, żeby aplikacja znalazła modele
+# i .venv także wtedy, gdy sam pakiet zostanie przeniesiony (np. do /Applications).
+/usr/libexec/PlistBuddy -c "Add :DyktowanieProjectRoot string $ROOT" "$APP/Contents/Info.plist" >/dev/null 2>&1 \
+    || /usr/libexec/PlistBuddy -c "Set :DyktowanieProjectRoot $ROOT" "$APP/Contents/Info.plist"
+
 # Biblioteki whisper.cpp/ggml. Binarka ma rpath @executable_path/../Frameworks,
 # a same dylib-y odwołują się do siebie przez @rpath, więc rozwiążą się tutaj.
 WHISPER_LIBS="$ROOT/vendor/whisper.cpp/build/bin"
