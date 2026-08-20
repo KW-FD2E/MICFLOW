@@ -7,11 +7,11 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SOURCE="$ROOT/build/Dyktowanie.app"
+SOURCE="$ROOT/build/MICFLOW.app"
 # Konto uzytkownika nie musi nalezec do grupy admin, a /Applications tego wymaga.
 # ~/Applications dziala tak samo dla Launchpada, Spotlighta i Docka.
 APPS="${APPS_DIR:-$HOME/Applications}"
-TARGET="$APPS/Dyktowanie.app"
+TARGET="$APPS/MICFLOW.app"
 mkdir -p "$APPS"
 
 if [ ! -d "$SOURCE" ]; then
@@ -20,9 +20,9 @@ if [ ! -d "$SOURCE" ]; then
 fi
 
 # Działającą aplikację trzeba zamknąć, inaczej podmiana pliku ją wywróci.
-if pgrep -f "Dyktowanie.app/Contents/MacOS" >/dev/null 2>&1; then
+if pgrep -f "MICFLOW.app/Contents/MacOS" >/dev/null 2>&1; then
     echo "==> Zamykam działającą aplikację"
-    pkill -f "Dyktowanie.app/Contents/MacOS" || true
+    pkill -f "MICFLOW.app/Contents/MacOS" || true
     sleep 1
 fi
 
@@ -34,7 +34,7 @@ cp -R "$SOURCE" "$TARGET"
 for lib in "$TARGET/Contents/Frameworks"/*.dylib; do
     [ -e "$lib" ] && codesign --force --sign - "$lib" 2>/dev/null
 done
-codesign --force --sign - --identifier local.dyktowanie.app "$TARGET"
+codesign --force --sign - --identifier local.micflow.app "$TARGET"
 
 echo "Zainstalowano: $TARGET"
 echo

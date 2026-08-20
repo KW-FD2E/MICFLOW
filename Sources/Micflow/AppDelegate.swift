@@ -14,13 +14,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private let cleaner = TextCleaner()
     private let injector = TextInjector()
-    private var modelMenuItems: [CleanupModel: NSMenuItem] = [:]
-    private var methodMenuItems: [InjectionMethod: NSMenuItem] = [:]
-
-    private var injectionMethod: InjectionMethod {
-        get { InjectionMethod(rawValue: UserDefaults.standard.string(forKey: "injectionMethod") ?? "") ?? .typing }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: "injectionMethod") }
-    }
 
     private let sounds = SoundFeedback()
     private let indicator = RecordingIndicator()
@@ -42,12 +35,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var soundsEnabled: Bool {
         get { UserDefaults.standard.object(forKey: "sounds") as? Bool ?? true }
         set { UserDefaults.standard.set(newValue, forKey: "sounds") }
-    }
-
-    /// Wybór modelu przeżywa restart aplikacji.
-    private var selectedModel: CleanupModel {
-        get { CleanupModel(rawValue: UserDefaults.standard.string(forKey: "cleanupModel") ?? "") ?? .fast }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: "cleanupModel") }
     }
 
     /// Transkrypcja liczy się poza głównym wątkiem, żeby nie zamrażać menu.
@@ -72,7 +59,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         cleaner.onStateChange = { [weak self] state in
             DispatchQueue.main.async { self?.setStatus(state) }
         }
-        startCleaner(model: selectedModel)
+        startCleaner()
 
         sounds.setEnabled(soundsEnabled)
 
@@ -104,7 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem = item
 
-        item.button?.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "Dyktowanie")
+        item.button?.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "MICFLOW")
 
         let menu = NSMenu()
 
@@ -130,32 +117,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(reveal)
 
         menu.addItem(NSMenuItem.separator())
-
-        let modelItem = NSMenuItem(title: "Czyszczenie tekstu", action: nil, keyEquivalent: "")
-        let modelMenu = NSMenu()
-        for model in CleanupModel.allCases {
-            let item = NSMenuItem(title: model.title, action: #selector(selectModel(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = model.rawValue
-            item.state = (model == selectedModel) ? .on : .off
-            modelMenu.addItem(item)
-            modelMenuItems[model] = item
-        }
-        modelItem.submenu = modelMenu
-        menu.addItem(modelItem)
-
-        let methodItem = NSMenuItem(title: "Wstawianie tekstu", action: nil, keyEquivalent: "")
-        let methodMenu = NSMenu()
-        for method in InjectionMethod.allCases {
-            let item = NSMenuItem(title: method.title, action: #selector(selectMethod(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = method.rawValue
-            item.state = (method == injectionMethod) ? .on : .off
-            methodMenu.addItem(item)
-            methodMenuItems[method] = item
-        }
-        methodItem.submenu = methodMenu
-        menu.addItem(methodItem)
 
         let hotkeyItem = NSMenuItem(title: "Skrót", action: nil, keyEquivalent: "")
         let hotkeyMenu = NSMenu()
@@ -213,7 +174,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateIcon(recording: Bool) {
         let symbol = recording ? "mic.fill" : "mic"
-        statusItem?.button?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "Dyktowanie")
+        statusItem?.button?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "MICFLOW")
         statusItem?.button?.contentTintColor = recording ? .systemRed : nil
         toggleMenuItem?.title = recording ? "Zatrzymaj nagrywanie" : "Rozpocznij nagrywanie"
     }
@@ -345,10 +306,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("Czyszczenie nieudane, zostaje surowy tekst: \(error.localizedDescription)")
         }
 
-        if cleaner.model != .disabled {
-            NSLog("--- PO CZYSZCZENIU (\(String(format: "%.2f", Date().timeIntervalSince(started)))s) ---")
-            NSLog("%@", cleaned)
-        }
+        NSLog("--- PO CZYSZCZENIU (\(String(format: "%.2f", Date().timeIntervalSince(started)))s) ---")
+        NSLog("%@", cleaned)
 
         DispatchQueue.main.async { [weak self] in
             self?.finish(text: cleaned)
@@ -373,18 +332,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         lastTranscript = text
         indicator.hide()
 
-        guard injectionMethod != .none else {
-            setStatus(text)
-            return
-        }
-
-        let method = injectionMethod
-
         // Wpisywanie idzie porcjami z przerwami, więc nie może blokować menu.
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
             do {
-                try self.injector.inject(text, method: method)
+                try self.injector.inject(text)
                 DispatchQueue.main.async { self.setStatus("Wstawiono: \(text)") }
             } catch {
                 // Tekst zostaje w menu i w schowku — użytkownik go nie traci.
@@ -407,9 +359,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Accessibility:  \(accessibility ? "TAK" : "NIE — bez tego skrót i wpisywanie nie zadziałają")
         Mikrofon:       \(Permissions.hasMicrophone ? "TAK" : "NIE")
         Model Whisper:  \(transcriber != nil ? "wczytany" : "BRAK")
-        Czyszczenie:    \(cleaner.model.title)
-        Stan modelu:    \(cleaner.model == .disabled ? "wyłączone" : (cleaner.isReady ? "gotowy" : "NIEGOTOWY"))
-        Wstawianie:     \(injectionMethod.title)
+        Czyszczenie:    \(cleaner.isReady ? "gotowe" : "NIEGOTOWE")
         Skrót:          \(hotkeyChoice.title)
         Skrót zadziałał: \(hotkey.pressCount) raz(y)
         Ostatni klawisz: \(hotkey.lastSeenKeyCode.map(String.init) ?? "żaden nie dotarł")
@@ -495,39 +445,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         loginMenuItem?.state = LaunchAtLogin.isEnabled ? .on : .off
     }
 
-    @objc private func selectMethod(_ sender: NSMenuItem) {
-        guard
-            let raw = sender.representedObject as? String,
-            let method = InjectionMethod(rawValue: raw)
-        else { return }
-
-        injectionMethod = method
-        for (candidate, item) in methodMenuItems {
-            item.state = (candidate == method) ? .on : .off
-        }
-        setStatus(method.title)
-    }
-
-    @objc private func selectModel(_ sender: NSMenuItem) {
-        guard
-            let raw = sender.representedObject as? String,
-            let model = CleanupModel(rawValue: raw),
-            model != cleaner.model
-        else { return }
-
-        selectedModel = model
-        for (candidate, item) in modelMenuItems {
-            item.state = (candidate == model) ? .on : .off
-        }
-
-        startCleaner(model: model)
-    }
-
-    /// Przełączenie modelu to restart procesu Pythona — dzięki temu w pamięci
-    /// nigdy nie siedzą oba modele naraz.
-    private func startCleaner(model: CleanupModel) {
+    private func startCleaner() {
         do {
-            try cleaner.start(model: model)
+            try cleaner.start()
         } catch {
             NSLog("Nie udało się uruchomić czyszczenia: \(error.localizedDescription)")
             setStatus(error.localizedDescription)

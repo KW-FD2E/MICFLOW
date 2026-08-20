@@ -3,13 +3,13 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>Dyktowanie</string>
+    <string>MICFLOW</string>
     <key>CFBundleDisplayName</key>
-    <string>Dyktowanie</string>
+    <string>MICFLOW</string>
     <key>CFBundleIdentifier</key>
-    <string>local.dyktowanie.app</string>
+    <string>local.micflow.app</string>
     <key>CFBundleExecutable</key>
-    <string>DyktowanieApp</string>
+    <string>Micflow</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

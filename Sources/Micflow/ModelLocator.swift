@@ -30,7 +30,7 @@ enum ModelLocator {
 
         let appSupport = FileManager.default
             .homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/Dyktowanie/models/\(name)")
+            .appendingPathComponent("Library/Application Support/MICFLOW/models/\(name)")
         paths.append(appSupport)
 
         // Katalog projektu — wygodne przy pracy z .build/ bez pakowania do .app.
@@ -47,12 +47,12 @@ enum ModelLocator {
     static let projectRoot: URL = {
         // Ścieżka wpisana przez scripts/bundle.sh — jedyna, która przeżywa
         // przeniesienie samego pakietu .app (np. instalację w /Applications).
-        if let declared = Bundle.main.object(forInfoDictionaryKey: "DyktowanieProjectRoot") as? String,
+        if let declared = Bundle.main.object(forInfoDictionaryKey: "MicflowProjectRoot") as? String,
            FileManager.default.fileExists(atPath: (declared as NSString).appendingPathComponent("Package.swift")) {
             return URL(fileURLWithPath: declared)
         }
 
-        let bundle = Bundle.main.bundleURL          // <projekt>/build/Dyktowanie.app
+        let bundle = Bundle.main.bundleURL          // <projekt>/build/MICFLOW.app
         let candidate = bundle
             .deletingLastPathComponent()            // <projekt>/build
             .deletingLastPathComponent()            // <projekt>

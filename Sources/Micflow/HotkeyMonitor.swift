@@ -2,16 +2,17 @@ import AppKit
 
 /// Klawisz push-to-talk. Wszystkie warianty to klawisze modyfikujące,
 /// bo tylko one dają czysty sygnał „wciśnięty / puszczony" bez powtarzania.
+///
+/// Prawy ⌥ celowo nie jest dostępny — na polskim układzie to AltGr
+/// do wpisywania ą, ć, ę i dyktowanie zjadałoby diakrytyki.
 enum HotkeyChoice: String, CaseIterable {
     case fn
     case rightCommand
-    case rightOption
 
     var keyCode: UInt16 {
         switch self {
         case .fn:           return 63   // kVK_Function
         case .rightCommand: return 54   // kVK_RightCommand
-        case .rightOption:  return 61   // kVK_RightOption
         }
     }
 
@@ -19,7 +20,6 @@ enum HotkeyChoice: String, CaseIterable {
         switch self {
         case .fn:           return .function
         case .rightCommand: return .command
-        case .rightOption:  return .option
         }
     }
 
@@ -27,7 +27,6 @@ enum HotkeyChoice: String, CaseIterable {
         switch self {
         case .fn:           return "fn / 🌐"
         case .rightCommand: return "prawy ⌘"
-        case .rightOption:  return "prawy ⌥ (kolizja z polskimi znakami)"
         }
     }
 }

@@ -13,7 +13,7 @@ extension Array {
 enum TestRecording {
     /// Sprawdza wstawianie tekstu. Po odliczeniu użytkownik ma czas, żeby
     /// kliknąć w docelowe pole tekstowe w innej aplikacji.
-    static func inject(text: String, method: InjectionMethod, delay: Int = 5) {
+    static func inject(text: String, delay: Int = 5) {
         guard AXIsProcessTrusted() else {
             print("BŁĄD: brak uprawnienia Accessibility.")
             print("Przyznaj je w Ustawieniach → Prywatność i ochrona → Dostępność,")
@@ -21,7 +21,6 @@ enum TestRecording {
             exit(1)
         }
 
-        print("Metoda: \(method.title)")
         print("Kliknij teraz w pole tekstowe, w którym ma pojawić się tekst.")
         for remaining in stride(from: delay, to: 0, by: -1) {
             print("  \(remaining)…")
@@ -29,7 +28,7 @@ enum TestRecording {
         }
 
         do {
-            try TextInjector().inject(text, method: method)
+            try TextInjector().inject(text)
             print("Wysłano. Sprawdź, czy tekst pojawił się poprawnie.")
             // Schowek przywraca się z opóźnieniem, więc dajemy procesowi dożyć.
             Thread.sleep(forTimeInterval: 1)
@@ -42,12 +41,12 @@ enum TestRecording {
 
     /// Pełny łańcuch: WAV → whisper → Bielik. Sprawdza spięcie wszystkich
     /// elementów bez potrzeby dostępu do mikrofonu.
-    static func pipeline(path: String, model: CleanupModel) {
-        let code = runPipeline(path: path, model: model)
+    static func pipeline(path: String) {
+        let code = runPipeline(path: path)
         exit(code)
     }
 
-    private static func runPipeline(path: String, model: CleanupModel) -> Int32 {
+    private static func runPipeline(path: String) -> Int32 {
         guard let modelPath = ModelLocator.whisperModel() else {
             print("BŁĄD: nie znaleziono modelu Whisper.")
             return 1
@@ -57,18 +56,15 @@ enum TestRecording {
         defer { cleaner.shutdown() }
 
         do {
-            print("Model czyszczenia: \(model.title)")
-            try cleaner.start(model: model)
+            try cleaner.start()
 
-            if model != .disabled {
-                let deadline = Date().addingTimeInterval(180)
-                while !cleaner.isReady && Date() < deadline {
-                    RunLoop.current.run(until: Date().addingTimeInterval(0.1))
-                }
-                guard cleaner.isReady else {
-                    print("BŁĄD: model czyszczenia nie wystartował.")
-                    return 1
-                }
+            let deadline = Date().addingTimeInterval(180)
+            while !cleaner.isReady && Date() < deadline {
+                RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+            }
+            guard cleaner.isReady else {
+                print("BŁĄD: model czyszczenia nie wystartował.")
+                return 1
             }
 
             let transcriber = try WhisperTranscriber(modelPath: modelPath, vadModelPath: ModelLocator.vadModel())

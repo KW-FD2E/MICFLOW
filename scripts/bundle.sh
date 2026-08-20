@@ -1,26 +1,26 @@
 #!/bin/bash
-# Buduje Dyktowanie.app — pakiet .app jest konieczny, żeby macOS w ogóle
+# Buduje MICFLOW.app — pakiet .app jest konieczny, żeby macOS w ogóle
 # pokazał prompt o mikrofon i zapamiętał przyznane uprawnienia (TCC).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIG="${1:-debug}"
-APP="$ROOT/build/Dyktowanie.app"
+APP="$ROOT/build/MICFLOW.app"
 
 cd "$ROOT"
 swift build -c "$CONFIG"
-BIN="$(swift build -c "$CONFIG" --show-bin-path)/DyktowanieApp"
+BIN="$(swift build -c "$CONFIG" --show-bin-path)/Micflow"
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Frameworks"
 
-cp "$BIN" "$APP/Contents/MacOS/DyktowanieApp"
+cp "$BIN" "$APP/Contents/MacOS/Micflow"
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 
 # Zapisujemy katalog projektu w Info.plist, żeby aplikacja znalazła modele
 # i .venv także wtedy, gdy sam pakiet zostanie przeniesiony (np. do /Applications).
-/usr/libexec/PlistBuddy -c "Add :DyktowanieProjectRoot string $ROOT" "$APP/Contents/Info.plist" >/dev/null 2>&1 \
-    || /usr/libexec/PlistBuddy -c "Set :DyktowanieProjectRoot $ROOT" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :MicflowProjectRoot string $ROOT" "$APP/Contents/Info.plist" >/dev/null 2>&1 \
+    || /usr/libexec/PlistBuddy -c "Set :MicflowProjectRoot $ROOT" "$APP/Contents/Info.plist"
 
 # Biblioteki whisper.cpp/ggml. Binarka ma rpath @executable_path/../Frameworks,
 # a same dylib-y odwołują się do siebie przez @rpath, więc rozwiążą się tutaj.
@@ -39,7 +39,7 @@ done
 
 # Stabilny identyfikator podpisu, żeby uprawnienia nie resetowały się
 # przy każdej przebudowie.
-codesign --force --sign - --identifier local.dyktowanie.app "$APP"
+codesign --force --sign - --identifier local.micflow.app "$APP"
 
 echo "Zbudowano: $APP"
 
@@ -55,6 +55,6 @@ if [ -n "$PREVIOUS_HASH" ] && [ "$CURRENT_HASH" != "$PREVIOUS_HASH" ]; then
     echo
     echo "UWAGA: podpis się zmienił — uprawnienie Accessibility wygasło."
     echo "Ustawienia → Prywatność i ochrona → Dostępność:"
-    echo "  usuń Dyktowanie przyciskiem [-], dodaj ponownie [+], wskaż:"
+    echo "  usuń MICFLOW przyciskiem [-], dodaj ponownie [+], wskaż:"
     echo "  $APP"
 fi

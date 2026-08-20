@@ -15,7 +15,7 @@ enum LaunchAtLogin {
                 // Ponowna rejestracja bez wyrejestrowania kończy się błędem,
                 // jeśli wpis już istnieje w stanie "requiresApproval".
                 if SMAppService.mainApp.status == .requiresApproval {
-                    return "Otwórz Ustawienia → Ogólne → Elementy logowania i zezwól na Dyktowanie."
+                    return "Otwórz Ustawienia → Ogólne → Elementy logowania i zezwól na MICFLOW."
                 }
                 try SMAppService.mainApp.register()
             } else {

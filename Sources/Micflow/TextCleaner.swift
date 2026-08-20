@@ -1,27 +1,13 @@
 import Foundation
 
-/// Wybór modelu czyszczącego. Oba warianty Bielika mają inny kompromis
-/// między szybkością a wiernością wobec tego, co użytkownik faktycznie powiedział.
-enum CleanupModel: String, CaseIterable {
-    case disabled
-    case fast
-    case faithful
-
-    var identifier: String? {
-        switch self {
-        case .disabled:  return nil
-        case .fast:      return "vqstudio/Bielik-4.5B-v3.0-Instruct-MLX-4bit"
-        case .faithful:  return "speakleash/Bielik-11B-v3.0-Instruct-MLX-4bit"
-        }
-    }
-
-    var title: String {
-        switch self {
-        case .disabled:  return "Wyłączone (sam Whisper)"
-        case .fast:      return "Szybki — Bielik 4,5B (~1,5 s)"
-        case .faithful:  return "Wierny — Bielik 11B (~5 s)"
-        }
-    }
+/// Model czyszczący tekst.
+///
+/// Był tu wcześniej wybór między Bielikiem 4,5B a 11B, ale mniejszy wariant
+/// potrafił zmieniać sens wypowiedzi (np. „niech potwierdzi" → „potwierdź"),
+/// więc został usunięty. Przy dyktowaniu wiadomości to zbyt kosztowny błąd,
+/// żeby nadrabiać go szybkością.
+enum CleanupModel {
+    static let identifier = "speakleash/Bielik-11B-v3.0-Instruct-MLX-4bit"
 }
 
 /// Czyszczenie tekstu lokalnym LLM-em. Python z MLX działa jako długo żyjący
@@ -49,7 +35,6 @@ final class TextCleaner {
     private var output: FileHandle?
     private var buffer = Data()
 
-    private(set) var model: CleanupModel = .disabled
     private(set) var isReady = false
 
     var onStateChange: ((String) -> Void)?
@@ -60,14 +45,8 @@ final class TextCleaner {
 
     // MARK: - Cykl życia procesu
 
-    func start(model: CleanupModel) throws {
+    func start() throws {
         shutdown()
-        self.model = model
-
-        guard let identifier = model.identifier else {
-            onStateChange?("Czyszczenie wyłączone")
-            return
-        }
 
         let root = ModelLocator.projectRoot
         let python = root.appendingPathComponent(".venv/bin/python")
@@ -82,7 +61,7 @@ final class TextCleaner {
         process.arguments = [script.path, "--serve"]
 
         var environment = ProcessInfo.processInfo.environment
-        environment["BIELIK_MODEL"] = identifier
+        environment["BIELIK_MODEL"] = CleanupModel.identifier
         // Bez tego Python buforuje stdout i odpowiedzi nie docierają na czas.
         environment["PYTHONUNBUFFERED"] = "1"
 
@@ -140,7 +119,6 @@ final class TextCleaner {
 
     /// Wywoływać poza głównym wątkiem — blokuje do czasu odpowiedzi modelu.
     func clean(text: String) throws -> String {
-        guard model != .disabled else { return text }
         guard isReady, let input else { throw CleanerError.notRunning }
 
         let request = try JSONSerialization.data(withJSONObject: ["text": text])

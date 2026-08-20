@@ -8,7 +8,7 @@ let ggmlInclude = "vendor/whisper.cpp/ggml/include"
 let whisperLibs = "vendor/whisper.cpp/build/bin"
 
 let package = Package(
-    name: "DyktowanieApp",
+    name: "Micflow",
     platforms: [
         .macOS(.v13)
     ],
@@ -18,9 +18,9 @@ let package = Package(
             path: "Sources/CWhisper"
         ),
         .executableTarget(
-            name: "DyktowanieApp",
+            name: "Micflow",
             dependencies: ["CWhisper"],
-            path: "Sources/DyktowanieApp",
+            path: "Sources/Micflow",
             swiftSettings: [
                 .unsafeFlags([
                     "-Xcc", "-I\(whisperInclude)",

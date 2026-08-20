@@ -1,4 +1,4 @@
-# Specyfikacja projektu: lokalna aplikacja do dyktowania (macOS)
+# MICFLOW — lokalna aplikacja do dyktowania (macOS)
 
 **Cel:** natywna aplikacja macOS działająca w tle (tray/menu bar), która po naciśnięciu globalnego skrótu klawiszowego nagrywa mowę, transkrybuje ją lokalnie, czyści tekst za pomocą lokalnego LLM-a i wstawia gotowy tekst w miejscu kursora — w pełni offline, bez żadnego API w chmurze.
 
@@ -213,3 +213,18 @@ Bez tego `huggingface_hub` przy każdym starcie odpytuje Hub o nowszą wersję m
 przy całkowitym braku sieci odbija się od razu, ale przy połączeniu zerwanym
 (portal logowania) czekałby na timeout. Efekt uboczny wymuszenia trybu offline —
 start modelu skrócił się z 7,4 s do 5,1 s.
+
+
+### Uproszczenia interfejsu
+
+Z menu i z kodu usunięte, żeby aplikacja była zrozumiała dla kogoś, kto jej nie budował:
+
+| Usunięte | Powód |
+|---|---|
+| Bielik 4,5B („szybki") | Potrafił zmieniać sens („niech potwierdzi" → „potwierdź"). Zostaje wyłącznie 11B. |
+| Prawy ⌥ jako skrót | Na polskim układzie to AltGr do ą, ć, ę — dyktowanie zjadałoby diakrytyki. |
+| Wklejanie ze schowka | Szybsze przy długim tekście, ale na ułamek sekundy podmieniało schowek użytkownika. Zostaje wpisywanie przez `CGEvent`. |
+| Podmenu „Czyszczenie tekstu" i „Wstawianie tekstu" | Wymagały wiedzy o wnętrzu aplikacji; teraz oba działają w jednym, sprawdzonym trybie. |
+
+W menu zostały: nagrywanie ręczne, kopiowanie transkrypcji, podgląd nagrania,
+skrót, sposób nagrywania, dźwięki, autostart i diagnostyka.

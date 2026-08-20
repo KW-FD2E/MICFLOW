@@ -63,4 +63,4 @@ echo "==> Buduję aplikację"
 "$ROOT/scripts/bundle.sh"
 
 echo
-echo "Gotowe. Uruchom: open build/Dyktowanie.app"
+echo "Gotowe. Uruchom: open build/MICFLOW.app"
