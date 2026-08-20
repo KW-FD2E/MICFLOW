@@ -85,6 +85,13 @@ final class TextCleaner {
         environment["BIELIK_MODEL"] = identifier
         // Bez tego Python buforuje stdout i odpowiedzi nie docierają na czas.
         environment["PYTHONUNBUFFERED"] = "1"
+
+        // Model jest już na dysku i nigdy go nie aktualizujemy w tle. Bez tego
+        // huggingface_hub przy każdym starcie odpytuje sieć o nowszą wersję —
+        // przy zerwanym połączeniu (np. portal logowania w hotelu) potrafi
+        // czekać na timeout zamiast od razu sięgnąć do cache.
+        environment["HF_HUB_OFFLINE"] = "1"
+        environment["TRANSFORMERS_OFFLINE"] = "1"
         process.environment = environment
 
         let inputPipe = Pipe()

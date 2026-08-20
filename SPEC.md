@@ -201,3 +201,15 @@ Ponieważ zainstalowany pakiet stoi poza katalogiem projektu, `bundle.sh` wpisuj
 ścieżkę projektu do `Info.plist` pod kluczem `DyktowanieProjectRoot`.
 `ModelLocator` czyta ją w pierwszej kolejności — bez tego zainstalowana kopia
 nie znalazłaby modeli ani `.venv`.
+
+### Praca bez internetu
+
+Cały pipeline jest lokalny — sieć była potrzebna wyłącznie do pobrania modeli.
+Sprawdzone przy ruchu skierowanym w nieosiągalne proxy: transkrypcja i czyszczenie
+działają normalnie.
+
+`TextCleaner` ustawia procesowi Pythona `HF_HUB_OFFLINE=1` i `TRANSFORMERS_OFFLINE=1`.
+Bez tego `huggingface_hub` przy każdym starcie odpytuje Hub o nowszą wersję modelu:
+przy całkowitym braku sieci odbija się od razu, ale przy połączeniu zerwanym
+(portal logowania) czekałby na timeout. Efekt uboczny wymuszenia trybu offline —
+start modelu skrócił się z 7,4 s do 5,1 s.
