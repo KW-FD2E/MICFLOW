@@ -39,9 +39,31 @@ enum ModelLocator {
         return paths
     }
 
-    /// Wyliczony ze ścieżki tego pliku w czasie kompilacji: Sources/DyktowanieApp/ → w górę o 3.
-    static let projectRoot = URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
+    /// Katalog projektu wyliczany w czasie DZIAŁANIA, nie kompilacji.
+    ///
+    /// Wcześniej brał się z `#filePath`, przez co przeniesienie folderu projektu
+    /// psuło aplikację — szukała modeli tam, gdzie stała w chwili kompilacji.
+    /// Teraz idziemy w górę od pakietu .app, który leży w <projekt>/build/.
+    static let projectRoot: URL = {
+        let bundle = Bundle.main.bundleURL          // <projekt>/build/Dyktowanie.app
+        let candidate = bundle
+            .deletingLastPathComponent()            // <projekt>/build
+            .deletingLastPathComponent()            // <projekt>
+
+        // Sprawdzamy po charakterystycznym pliku, czy trafiliśmy w projekt.
+        if FileManager.default.fileExists(atPath: candidate.appendingPathComponent("Package.swift").path) {
+            return candidate
+        }
+
+        // Uruchomienie binarki wprost z .build/debug/ — wtedy w górę o trzy.
+        let fromBuildDirectory = bundle
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        if FileManager.default.fileExists(atPath: fromBuildDirectory.appendingPathComponent("Package.swift").path) {
+            return fromBuildDirectory
+        }
+
+        return candidate
+    }()
 }

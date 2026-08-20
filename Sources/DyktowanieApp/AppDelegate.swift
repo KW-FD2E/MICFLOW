@@ -23,7 +23,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private let sounds = SoundFeedback()
+    private let indicator = RecordingIndicator()
     private var hotkeyMenuItems: [HotkeyChoice: NSMenuItem] = [:]
+    private var modeMenuItems: [HotkeyMode: NSMenuItem] = [:]
+
+    private var hotkeyMode: HotkeyMode {
+        get { HotkeyMode(rawValue: UserDefaults.standard.string(forKey: "hotkeyMode") ?? "") ?? .toggle }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "hotkeyMode") }
+    }
     private var soundMenuItem: NSMenuItem?
     private var loginMenuItem: NSMenuItem?
 
@@ -69,9 +76,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         sounds.setEnabled(soundsEnabled)
 
+        hotkey.isRecording = { [weak self] in self?.recorder.isRecording ?? false }
         hotkey.onPress = { [weak self] in self?.startRecording() }
         hotkey.onRelease = { [weak self] in self?.stopRecording() }
-        hotkey.start(choice: hotkeyChoice)
+        hotkey.start(choice: hotkeyChoice, mode: hotkeyMode)
 
         if !Permissions.hasAccessibility(prompt: true) {
             setStatus("Przyznaj Accessibility, by działał skrót")
@@ -80,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         hotkey.stop()
+        indicator.hide()
         if recorder.isRecording { _ = recorder.stop() }
 
         cleaner.shutdown()
@@ -161,6 +170,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotkeyItem.submenu = hotkeyMenu
         menu.addItem(hotkeyItem)
 
+        let modeItem = NSMenuItem(title: "Sposób nagrywania", action: nil, keyEquivalent: "")
+        let modeMenu = NSMenu()
+        for mode in HotkeyMode.allCases {
+            let item = NSMenuItem(title: mode.title, action: #selector(selectMode(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = mode.rawValue
+            item.state = (mode == hotkeyMode) ? .on : .off
+            modeMenu.addItem(item)
+            modeMenuItems[mode] = item
+        }
+        modeItem.submenu = modeMenu
+        menu.addItem(modeItem)
+
         let sound = NSMenuItem(title: "Dźwięki", action: #selector(toggleSounds), keyEquivalent: "")
         sound.target = self
         sound.state = soundsEnabled ? .on : .off
@@ -239,8 +261,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try recorder.start()
             sounds.play(.start)
             updateIcon(recording: true)
+            indicator.show(.listening)
             setStatus("Nagrywanie…")
         } catch {
+            indicator.hide()
             setStatus("Błąd: \(error.localizedDescription)")
             NSLog("Nie udało się rozpocząć nagrywania: \(error.localizedDescription)")
         }
@@ -249,9 +273,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func stopRecording() {
         guard let result = recorder.stop() else { return }
 
+        // Poprzednie nagranie przestaje być potrzebne w chwili, gdy mamy nowe.
+        // Bez tego pliki WAV odkładałyby się w nieskończoność.
+        discardRecording(at: lastRecordingURL)
         lastRecordingURL = result.url
+
         sounds.play(.stop)
         updateIcon(recording: false)
+        indicator.show(.processing)
 
         let seconds = String(format: "%.1f", result.duration)
         NSLog("Nagranie zapisane: \(result.url.path) (\(seconds)s)")
@@ -276,7 +305,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 NSLog("%@", text.isEmpty ? "(pusto)" : text)
 
                 guard !text.isEmpty else {
-                    DispatchQueue.main.async { self?.setStatus("Nic nie rozpoznano") }
+                    DispatchQueue.main.async {
+                        self?.indicator.hide()
+                        self?.setStatus("Nic nie rozpoznano")
+                    }
                     return
                 }
 
@@ -284,7 +316,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.clean(text: text)
             } catch {
                 NSLog("Błąd transkrypcji: \(error.localizedDescription)")
-                DispatchQueue.main.async { self?.setStatus("Błąd: \(error.localizedDescription)") }
+                DispatchQueue.main.async {
+                    self?.indicator.hide()
+                    self?.setStatus("Błąd: \(error.localizedDescription)")
+                }
             }
         }
     }
@@ -320,9 +355,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// Usuwa plik nagrania. Na dysku trzymamy tylko ostatni, dla pozycji
+    /// „Pokaż ostatnie nagranie".
+    private func discardRecording(at url: URL?) {
+        guard let url else { return }
+        do {
+            try FileManager.default.removeItem(at: url)
+        } catch CocoaError.fileNoSuchFile {
+            // Katalog tymczasowy mógł zostać wyczyszczony przez system — w porządku.
+        } catch {
+            NSLog("Nie udało się usunąć nagrania \(url.lastPathComponent): \(error.localizedDescription)")
+        }
+    }
+
     /// Ostatni krok: tekst trafia tam, gdzie stoi kursor użytkownika.
     private func finish(text: String) {
         lastTranscript = text
+        indicator.hide()
 
         guard injectionMethod != .none else {
             setStatus(text)
@@ -407,8 +456,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item.state = (candidate == choice) ? .on : .off
         }
 
-        hotkey.start(choice: choice)
-        setStatus("Skrót: przytrzymaj \(choice.title)")
+        hotkey.start(choice: choice, mode: hotkeyMode)
+        setStatus("Skrót: \(choice.title)")
+    }
+
+    @objc private func selectMode(_ sender: NSMenuItem) {
+        guard
+            let raw = sender.representedObject as? String,
+            let mode = HotkeyMode(rawValue: raw)
+        else { return }
+
+        hotkeyMode = mode
+        for (candidate, item) in modeMenuItems {
+            item.state = (candidate == mode) ? .on : .off
+        }
+
+        hotkey.start(choice: hotkeyChoice, mode: mode)
+        setStatus(mode.title)
     }
 
     @objc private func toggleSounds() {

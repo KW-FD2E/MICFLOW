@@ -32,7 +32,20 @@ enum HotkeyChoice: String, CaseIterable {
     }
 }
 
-/// Nasłuchuje globalnie na przytrzymanie klawisza push-to-talk.
+/// Sposób wyzwalania nagrania.
+enum HotkeyMode: String, CaseIterable {
+    case hold
+    case toggle
+
+    var title: String {
+        switch self {
+        case .hold:   return "Przytrzymanie (mów, gdy trzymasz)"
+        case .toggle: return "Dwuklik włącza, klik wyłącza"
+        }
+    }
+}
+
+/// Nasłuchuje globalnie na klawisz push-to-talk.
 /// Wymaga uprawnienia Accessibility / Input Monitoring.
 final class HotkeyMonitor {
     private var globalMonitor: Any?
@@ -40,6 +53,16 @@ final class HotkeyMonitor {
     private var isDown = false
 
     private(set) var choice: HotkeyChoice = .fn
+    private(set) var mode: HotkeyMode = .toggle
+
+    /// Maksymalna przerwa między kliknięciami, żeby uznać je za dwuklik.
+    private static let doubleTapWindow: TimeInterval = 0.45
+
+    private var lastPressTime: Date?
+
+    /// Monitor musi wiedzieć, czy nagranie już trwa — w trybie dwukliku
+    /// pojedyncze kliknięcie ma wtedy zatrzymywać, a nie czekać na drugie.
+    var isRecording: (() -> Bool)?
 
     /// Ile razy skrót zadziałał. W diagnostyce pozwala odróżnić „monitor nie
     /// dostaje zdarzeń" od „dostaje, ale coś dalej nie działa".
@@ -52,9 +75,10 @@ final class HotkeyMonitor {
     var onPress: (() -> Void)?
     var onRelease: (() -> Void)?
 
-    func start(choice: HotkeyChoice) {
+    func start(choice: HotkeyChoice, mode: HotkeyMode) {
         stop()
         self.choice = choice
+        self.mode = mode
 
         globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             self?.handle(event)
@@ -85,11 +109,33 @@ final class HotkeyMonitor {
         guard pressed != isDown else { return }
         isDown = pressed
 
-        if pressed {
+        switch mode {
+        case .hold:
+            if pressed {
+                pressCount += 1
+                onPress?()
+            } else {
+                onRelease?()
+            }
+
+        case .toggle:
+            // Reagujemy tylko na wciśnięcie; puszczenie klawisza jest bez znaczenia.
+            guard pressed else { return }
             pressCount += 1
-            onPress?()
-        } else {
-            onRelease?()
+
+            if isRecording?() == true {
+                lastPressTime = nil
+                onRelease?()
+                return
+            }
+
+            let now = Date()
+            if let previous = lastPressTime, now.timeIntervalSince(previous) <= Self.doubleTapWindow {
+                lastPressTime = nil
+                onPress?()
+            } else {
+                lastPressTime = now
+            }
         }
     }
 }

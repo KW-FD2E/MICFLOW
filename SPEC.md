@@ -166,3 +166,23 @@ macOS wiąże zgodę Accessibility z podpisem kodu. Przy podpisie ad-hoc **każd
 zmiana kodu zmienia cdhash i unieważnia zgodę**, przy czym aplikacja nadal
 figuruje jako zaznaczona w Ustawieniach. Trzeba ją usunąć `[-]` i dodać `[+]`
 ponownie. `scripts/bundle.sh` wykrywa zmianę cdhash i o tym przypomina.
+
+### Tryby nagrywania i wskaźnik
+
+- **Sposób nagrywania** (menu): „Przytrzymanie" albo „Dwuklik włącza, klik wyłącza"
+  (domyślny). W trybie dwukliku okno czasowe to 450 ms; gdy nagranie trwa,
+  pojedyncze kliknięcie je kończy.
+- **Wskaźnik**: pływająca plakietka `NSPanel` przy kursorze tekstowym —
+  niebieska „Słucham…" z pulsującą kropką, potem indygo „Przetwarzam…".
+  Pozycja z Accessibility API (`kAXBoundsForRangeParameterizedAttribute`),
+  a gdy aplikacja jej nie udostępnia — przy wskaźniku myszy. Panel jest
+  `nonactivating` i `ignoresMouseEvents`, żeby nie odebrał fokusu polu tekstowemu.
+- **Nagrania WAV**: na dysku zostaje tylko ostatnie. Poprzednie kasuje się
+  w chwili rozpoczęcia nowego.
+
+### Ścieżka projektu wyliczana w czasie działania
+
+`ModelLocator.projectRoot` brał się z `#filePath`, czyli ze ścieżki z chwili
+kompilacji — przeniesienie folderu projektu psuło wyszukiwanie modeli i `.venv`.
+Teraz liczy się od położenia pakietu `.app` (`<projekt>/build/Dyktowanie.app`),
+z weryfikacją po obecności `Package.swift`.
