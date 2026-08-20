@@ -228,3 +228,28 @@ Z menu i z kodu usunięte, żeby aplikacja była zrozumiała dla kogoś, kto jej
 
 W menu zostały: nagrywanie ręczne, kopiowanie transkrypcji, podgląd nagrania,
 skrót, sposób nagrywania, dźwięki, autostart i diagnostyka.
+
+### Języki
+
+Menu **Języki**: Polski (domyślny), English, Automatycznie.
+
+Zmiana obejmuje dwa niezależne miejsca — samo przestawienie Whispera nie wystarcza:
+
+- **Whisper** dostaje kod języka przy każdym wywołaniu, więc przełączenie działa
+  natychmiast, bez przeładowania modelu. `"auto"` włącza wykrywanie z audio.
+- **Bielik** dostaje osobny prompt systemowy i własne przykłady dla każdego języka.
+  Polski prompt na angielskim tekście powoduje **tłumaczenie**, nie redakcję:
+  `"we should ship this feature next week"` → „Powinniśmy wypuścić tę funkcję…".
+
+W trybie automatycznym język wykryty przez Whispera (`whisper_full_lang_id`)
+jest przekazywany dalej do Bielika, żeby dobrał właściwy prompt.
+
+Prefiksy promptów są buforowane osobno dla każdego języka — koszt jednorazowy
+przy starcie, potem zero.
+
+Zmierzone na próbce angielskiej (jfk.wav) w trybie automatycznym: wykryto `en`,
+transkrypcja poprawna, Bielik nie przetłumaczył. Jakość redakcji angielskiej
+jest dobra — zachowuje potoczne formy („gonna" zostaje „gonna").
+
+**Domyślny pozostaje Polski**, bo przy bardzo krótkich wypowiedziach automatyczne
+wykrywanie bywa zawodne (kilka polskich słów potrafi zostać uznane za czeskie).

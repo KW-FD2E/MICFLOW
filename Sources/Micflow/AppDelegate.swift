@@ -18,6 +18,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let sounds = SoundFeedback()
     private let indicator = RecordingIndicator()
     private var hotkeyMenuItems: [HotkeyChoice: NSMenuItem] = [:]
+    private var languageMenuItems: [DictationLanguage: NSMenuItem] = [:]
+
+    private var language: DictationLanguage {
+        get { DictationLanguage(rawValue: UserDefaults.standard.string(forKey: "language") ?? "") ?? .polish }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: "language") }
+    }
     private var modeMenuItems: [HotkeyMode: NSMenuItem] = [:]
 
     private var hotkeyMode: HotkeyMode {
@@ -38,7 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// Transkrypcja liczy się poza głównym wątkiem, żeby nie zamrażać menu.
-    private let transcribeQueue = DispatchQueue(label: "local.dyktowanie.transcribe", qos: .userInitiated)
+    private let transcribeQueue = DispatchQueue(label: "local.micflow.transcribe", qos: .userInitiated)
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -118,6 +124,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(NSMenuItem.separator())
 
+        let languageItem = NSMenuItem(title: "Języki", action: nil, keyEquivalent: "")
+        let languageMenu = NSMenu()
+        for option in DictationLanguage.allCases {
+            let item = NSMenuItem(title: option.title, action: #selector(selectLanguage(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = option.rawValue
+            item.state = (option == language) ? .on : .off
+            languageMenu.addItem(item)
+            languageMenuItems[option] = item
+        }
+        languageItem.submenu = languageMenu
+        menu.addItem(languageItem)
+
         let hotkeyItem = NSMenuItem(title: "Skrót", action: nil, keyEquivalent: "")
         let hotkeyMenu = NSMenu()
         for choice in HotkeyChoice.allCases {
@@ -192,10 +211,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
+        let languageCode = language.whisperCode
         transcribeQueue.async { [weak self] in
             let started = Date()
             do {
-                let transcriber = try WhisperTranscriber(modelPath: modelPath, vadModelPath: ModelLocator.vadModel())
+                let transcriber = try WhisperTranscriber(
+                    modelPath: modelPath,
+                    vadModelPath: ModelLocator.vadModel(),
+                    language: languageCode
+                )
                 let elapsed = Date().timeIntervalSince(started)
                 DispatchQueue.main.async {
                     self?.transcriber = transcriber
@@ -274,7 +298,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
 
                 DispatchQueue.main.async { self?.setStatus("Czyszczenie tekstu…") }
-                self?.clean(text: text)
+                self?.clean(text: text, language: transcriber.detectedLanguage)
             } catch {
                 NSLog("Błąd transkrypcji: \(error.localizedDescription)")
                 DispatchQueue.main.async {
@@ -295,11 +319,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Ostatni krok pipeline'u. Gdy czyszczenie zawiedzie, zostawiamy surową
     /// transkrypcję — lepszy niedoskonały tekst niż żaden.
-    private func clean(text: String) {
+    private func clean(text: String, language: String) {
         let started = Date()
         var cleaned = text
         do {
-            cleaned = try cleaner.clean(text: text)
+            cleaned = try cleaner.clean(text: text, language: language)
         } catch {
             // Nieudane czyszczenie nie może wstrzymać wstawiania — użytkownik
             // dostaje wtedy surową transkrypcję, ale dostaje ją tam, gdzie chciał.
@@ -360,6 +384,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Mikrofon:       \(Permissions.hasMicrophone ? "TAK" : "NIE")
         Model Whisper:  \(transcriber != nil ? "wczytany" : "BRAK")
         Czyszczenie:    \(cleaner.isReady ? "gotowe" : "NIEGOTOWE")
+        Język:          \(language.title)
+        Ostatnio wykryty: \(transcriber?.detectedLanguage ?? "—")
         Skrót:          \(hotkeyChoice.title)
         Skrót zadziałał: \(hotkey.pressCount) raz(y)
         Ostatni klawisz: \(hotkey.lastSeenKeyCode.map(String.init) ?? "żaden nie dotarł")
@@ -393,6 +419,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else if response == .alertThirdButtonReturn {
             Permissions.openAccessibilitySettings()
         }
+    }
+
+    @objc private func selectLanguage(_ sender: NSMenuItem) {
+        guard
+            let raw = sender.representedObject as? String,
+            let option = DictationLanguage(rawValue: raw)
+        else { return }
+
+        language = option
+        for (candidate, item) in languageMenuItems {
+            item.state = (candidate == option) ? .on : .off
+        }
+
+        // Język podajemy przy każdej transkrypcji, więc zmiana działa od razu
+        // i nie wymaga przeładowania modelu.
+        transcriber?.language = option.whisperCode
+        setStatus("Język: \(option.title)")
     }
 
     @objc private func selectHotkey(_ sender: NSMenuItem) {

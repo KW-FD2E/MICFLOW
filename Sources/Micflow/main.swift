@@ -13,10 +13,11 @@ if let index = CommandLine.arguments.firstIndex(of: "--test-record") {
     TestRecording.transcribeFile(path: path)
 } else if let index = CommandLine.arguments.firstIndex(of: "--test-pipeline") {
     guard let path = CommandLine.arguments[safe: index + 1] else {
-        print("Użycie: --test-pipeline plik.wav")
+        print("Użycie: --test-pipeline plik.wav [polish|english|automatic]")
         exit(1)
     }
-    TestRecording.pipeline(path: path)
+    let language = DictationLanguage(rawValue: CommandLine.arguments[safe: index + 2] ?? "polish") ?? .polish
+    TestRecording.pipeline(path: path, language: language)
 } else if let index = CommandLine.arguments.firstIndex(of: "--test-inject") {
     let text = CommandLine.arguments[safe: index + 1]
         ?? "Zażółć gęślą jaźń — ĄĆĘŁŃÓŚŹŻ, test wpisywania 123."

@@ -1,6 +1,30 @@
 import CWhisper
 import Foundation
 
+/// Język dyktowania wybierany przez użytkownika.
+enum DictationLanguage: String, CaseIterable {
+    case polish
+    case english
+    case automatic
+
+    /// Kod podawany Whisperowi. "auto" uruchamia wykrywanie na podstawie audio.
+    var whisperCode: String {
+        switch self {
+        case .polish:    return "pl"
+        case .english:   return "en"
+        case .automatic: return "auto"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .polish:    return "Polski"
+        case .english:   return "English"
+        case .automatic: return "Automatycznie (wykrywa z mowy)"
+        }
+    }
+}
+
 /// Transkrypcja mowy przez whisper.cpp, wołaną w procesie przez C API.
 /// Model ładuje się raz i zostaje w pamięci — dzięki temu każde kolejne
 /// dyktowanie nie płaci ~300 ms za wczytanie modelu z dysku.
@@ -23,8 +47,15 @@ final class WhisperTranscriber {
     }
 
     private let context: OpaquePointer
-    private let language: String
     private let vadModelPath: String?
+
+    /// Kod języka podawany Whisperowi. "auto" włącza wykrywanie na podstawie audio.
+    /// Ustawiany przy każdym wywołaniu, więc zmiana nie wymaga przeładowania modelu.
+    var language: String
+
+    /// Język faktycznie rozpoznany przy ostatniej transkrypcji ("pl", "en", ...).
+    /// Przy wymuszonym języku jest po prostu nim; przy "auto" — wynikiem wykrycia.
+    private(set) var detectedLanguage: String = "pl"
 
     init(modelPath: String, vadModelPath: String? = nil, language: String = "pl") throws {
         guard FileManager.default.fileExists(atPath: modelPath) else {
@@ -96,6 +127,10 @@ final class WhisperTranscriber {
         }
 
         guard status == 0 else { throw TranscriberError.inferenceFailed }
+
+        if let name = whisper_lang_str(whisper_full_lang_id(context)) {
+            detectedLanguage = String(cString: name)
+        }
 
         var text = ""
         for index in 0..<whisper_full_n_segments(context) {

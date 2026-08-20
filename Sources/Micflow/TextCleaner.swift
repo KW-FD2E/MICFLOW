@@ -118,10 +118,12 @@ final class TextCleaner {
     // MARK: - Czyszczenie
 
     /// Wywoływać poza głównym wątkiem — blokuje do czasu odpowiedzi modelu.
-    func clean(text: String) throws -> String {
+    /// - Parameter language: kod języka („pl", „en"). Decyduje, którego promptu
+    ///   użyje model — polski prompt na angielskim tekście powoduje tłumaczenie.
+    func clean(text: String, language: String) throws -> String {
         guard isReady, let input else { throw CleanerError.notRunning }
 
-        let request = try JSONSerialization.data(withJSONObject: ["text": text])
+        let request = try JSONSerialization.data(withJSONObject: ["text": text, "language": language])
         input.write(request)
         input.write(Data("\n".utf8))
 

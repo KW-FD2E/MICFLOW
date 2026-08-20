@@ -41,12 +41,12 @@ enum TestRecording {
 
     /// Pełny łańcuch: WAV → whisper → Bielik. Sprawdza spięcie wszystkich
     /// elementów bez potrzeby dostępu do mikrofonu.
-    static func pipeline(path: String) {
-        let code = runPipeline(path: path)
+    static func pipeline(path: String, language: DictationLanguage) {
+        let code = runPipeline(path: path, language: language)
         exit(code)
     }
 
-    private static func runPipeline(path: String) -> Int32 {
+    private static func runPipeline(path: String, language: DictationLanguage) -> Int32 {
         guard let modelPath = ModelLocator.whisperModel() else {
             print("BŁĄD: nie znaleziono modelu Whisper.")
             return 1
@@ -67,7 +67,12 @@ enum TestRecording {
                 return 1
             }
 
-            let transcriber = try WhisperTranscriber(modelPath: modelPath, vadModelPath: ModelLocator.vadModel())
+            let transcriber = try WhisperTranscriber(
+                modelPath: modelPath,
+                vadModelPath: ModelLocator.vadModel(),
+                language: language.whisperCode
+            )
+            print("Język: \(language.title)")
             let samples = try loadSamples(path: path)
 
             var started = Date()
@@ -75,10 +80,11 @@ enum TestRecording {
             let transcribeSeconds = Date().timeIntervalSince(started)
 
             started = Date()
-            let cleaned = try cleaner.clean(text: raw)
+            let cleaned = try cleaner.clean(text: raw, language: transcriber.detectedLanguage)
             let cleanSeconds = Date().timeIntervalSince(started)
 
             print(String(format: "\nTranskrypcja: %.2fs", transcribeSeconds))
+            print("Wykryty język: \(transcriber.detectedLanguage)")
             print("SUROWY:  \(raw)")
             print(String(format: "\nCzyszczenie: %.2fs", cleanSeconds))
             print("GOTOWY:  \(cleaned)")
