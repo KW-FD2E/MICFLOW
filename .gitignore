@@ -1,0 +1,16 @@
+.build/
+.swiftpm/
+*.xcodeproj
+DerivedData/
+.DS_Store
+build/
+
+# Zależności i modele odtwarzane przez scripts/setup.sh — łącznie ~900 MB,
+# nie ma powodu trzymać ich w historii repozytorium.
+vendor/
+models/
+
+# Środowisko Pythona dla MLX — odtwarzane przez scripts/setup.sh
+.venv/
+__pycache__/
+*.pyc

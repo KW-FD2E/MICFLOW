@@ -1,0 +1,5 @@
+module CWhisper [system] {
+    header "../../vendor/whisper.cpp/include/whisper.h"
+    link "whisper"
+    export *
+}
