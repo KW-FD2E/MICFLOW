@@ -64,15 +64,15 @@ enum ModelLocator {
     /// Katalog projektu, o ile aplikację uruchomiono z drzewa źródeł.
     /// Do normalnego działania nie jest potrzebny.
     static let developmentRoot: URL? = {
-        let candidates = [
-            // .build/debug/Micflow
-            Bundle.main.bundleURL.deletingLastPathComponent()
-                .deletingLastPathComponent()
-                .deletingLastPathComponent(),
-            // build/MICFLOW.app
-            Bundle.main.bundleURL.deletingLastPathComponent()
-                .deletingLastPathComponent()
-        ]
+        // Dla zwykłej binarki `bundleURL` wskazuje KATALOG z plikiem wykonywalnym,
+        // nie sam plik. Stąd dwa poziomy dla układu `.build/debug` i `build/*.app`,
+        // a trzy dla `.build/<triple>/debug`, którego SwiftPM używa wymiennie.
+        //
+        // Kolejność ma znaczenie: wariant krótszy musi być pierwszy, inaczej
+        // dłuższy trafiłby w katalog NADRZĘDNY wobec projektu i — gdyby ten też
+        // był pakietem Swift — wygrałby błędnie.
+        let base = Bundle.main.bundleURL.deletingLastPathComponent().deletingLastPathComponent()
+        let candidates = [base, base.deletingLastPathComponent()]
 
         return candidates.first {
             FileManager.default.fileExists(atPath: $0.appendingPathComponent("Package.swift").path)
