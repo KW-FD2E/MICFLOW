@@ -25,6 +25,41 @@ final class TextInjector {
     /// Wysyła tekst jako zdarzenia klawiatury. Wariant ze schowkiem został
     /// usunięty — był szybszy przy długim tekście, ale na ułamek sekundy
     /// podmieniał zawartość schowka użytkownika.
+    /// Czy w aktywnej aplikacji stoi kursor w polu, które przyjmie tekst.
+    ///
+    /// Decyduje, czy wpisać tekst wprost, czy pokazać panel z możliwością
+    /// skopiowania. Bez tego tekst wpadałby po cichu w próżnię.
+    static func hasFocusedTextField() -> Bool {
+        guard AXIsProcessTrusted() else { return false }
+
+        var focused: AnyObject?
+        guard
+            AXUIElementCopyAttributeValue(
+                AXUIElementCreateSystemWide(),
+                kAXFocusedUIElementAttribute as CFString,
+                &focused
+            ) == .success,
+            let focusedElement = focused
+        else { return false }
+
+        let element = focusedElement as! AXUIElement
+
+        // Zakres zaznaczenia udostępniają tylko elementy tekstowe — to najpewniejszy sygnał.
+        var range: AnyObject?
+        if AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &range) == .success {
+            return true
+        }
+
+        // Część aplikacji zakresu nie daje, ale deklaruje rolę pola tekstowego.
+        var role: AnyObject?
+        guard
+            AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role) == .success,
+            let roleName = role as? String
+        else { return false }
+
+        return [kAXTextFieldRole, kAXTextAreaRole, kAXComboBoxRole].contains(roleName)
+    }
+
     func inject(_ text: String) throws {
         guard !text.isEmpty else { return }
         guard AXIsProcessTrusted() else { throw InjectorError.noAccessibility }

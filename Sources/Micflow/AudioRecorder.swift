@@ -36,6 +36,10 @@ final class AudioRecorder {
     private var samples: [Float] = []
     private let samplesLock = NSLock()
 
+    /// Bieżący poziom sygnału (0–1), oddawany na każdy bufor z mikrofonu.
+    /// Napędza animację pasków we wskaźniku. Wołane z wątku audio.
+    var onLevel: ((Float) -> Void)?
+
     /// Zaczyna nagrywanie do nowego pliku WAV w katalogu tymczasowym.
     /// - Returns: URL pliku, do którego trwa zapis.
     @discardableResult
@@ -124,8 +128,19 @@ final class AudioRecorder {
         guard let converter, let targetFormat, let outputFile else { return }
 
         if let raw = buffer.floatChannelData?[0] {
-            for i in 0..<Int(buffer.frameLength) {
-                rawInputPeak = max(rawInputPeak, abs(raw[i]))
+            let frames = Int(buffer.frameLength)
+            var sumOfSquares: Float = 0
+            for i in 0..<frames {
+                let value = raw[i]
+                rawInputPeak = max(rawInputPeak, abs(value))
+                sumOfSquares += value * value
+            }
+
+            if frames > 0, let onLevel {
+                // RMS zamiast szczytu — lepiej oddaje głośność mowy niż
+                // pojedyncze trzaski, więc paski nie skaczą od byle stuknięcia.
+                let rms = (sumOfSquares / Float(frames)).squareRoot()
+                onLevel(rms)
             }
         }
 

@@ -1,3 +1,4 @@
+import AppKit
 import AVFoundation
 import ApplicationServices
 import Foundation
@@ -215,5 +216,32 @@ enum TestRecording {
         } else {
             print("OK: wykryto sygnał audio.")
         }
+    }
+}
+
+extension TestRecording {
+    /// Zapisuje podgląd pastylki w kilku stanach, żeby dało się ocenić wygląd
+    /// bez uruchamiania aplikacji i bez mikrofonu.
+    static func renderIndicator() {
+        let warianty: [(String, [Float], RecordingIndicator.State)] = [
+            ("cisza",     Array(repeating: 0.02, count: 12), .listening),
+            ("cicho",     (0..<12).map { _ in Float.random(in: 0.10...0.30) }, .listening),
+            ("mowa",      (0..<12).map { i in Float(0.35 + 0.5 * sin(Double(i) * 0.9)) }, .listening),
+            ("glosno",    (0..<12).map { _ in Float.random(in: 0.65...1.0) }, .listening),
+            ("przetwarzanie", Array(repeating: 0, count: 12), .processing),
+        ]
+
+        for (nazwa, poziomy, stan) in warianty {
+            let image = RecordingIndicator.renderPreview(levels: poziomy, state: stan)
+            guard
+                let tiff = image.tiffRepresentation,
+                let rep = NSBitmapImageRep(data: tiff),
+                let png = rep.representation(using: .png, properties: [:])
+            else { continue }
+            let url = URL(fileURLWithPath: "/tmp/klatki/podglad-\(nazwa).png")
+            try? png.write(to: url)
+            print("zapisano \(url.path)")
+        }
+        exit(0)
     }
 }

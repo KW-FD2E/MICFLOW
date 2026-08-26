@@ -14,3 +14,6 @@ __pycache__/
 # Modele i srodowisko Pythona nie leza juz w projekcie, tylko w
 # ~/Library/Application Support/MICFLOW — dzieki temu przeniesienie
 # katalogu z kodem nie psuje zainstalowanej aplikacji.
+
+# Nagrania referencyjne — materiał roboczy, nie kod.
+*.mov

@@ -17,6 +17,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private let sounds = SoundFeedback()
     private let indicator = RecordingIndicator()
+    private let transcriptPanel = TranscriptPanel()
     private var hotkeyMenuItems: [HotkeyChoice: NSMenuItem] = [:]
     private var languageMenuItems: [DictationLanguage: NSMenuItem] = [:]
 
@@ -75,6 +76,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         sounds.setEnabled(soundsEnabled)
 
+        recorder.onLevel = { [weak self] level in self?.indicator.update(level: level) }
+
         hotkey.isRecording = { [weak self] in self?.recorder.isRecording ?? false }
         hotkey.onPress = { [weak self] in self?.startRecording() }
         hotkey.onRelease = { [weak self] in self?.stopRecording() }
@@ -90,6 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         indicator.hide()
         if recorder.isRecording { _ = recorder.stop() }
 
+        transcriptPanel.hide()
         cleaner.shutdown()
 
         // Zwolnij kontekst whisper.cpp, zanim proces zacznie się zamykać —
@@ -249,6 +253,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         do {
+            transcriptPanel.hide()
             try recorder.start()
             sounds.play(.start)
             startRecordingLimit()
@@ -379,6 +384,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         lastTranscript = text
         indicator.hide()
 
+        // Gdy nie ma gdzie pisać, pokazujemy tekst w panelu zamiast wpychać go
+        // w nieznane miejsce albo chować po cichu w schowku.
+        guard TextInjector.hasFocusedTextField() else {
+            transcriptPanel.show(text: text)
+            setStatus("Brak pola tekstowego — tekst w panelu")
+            return
+        }
+
         // Wpisywanie idzie porcjami z przerwami, więc nie może blokować menu.
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
@@ -386,12 +399,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try self.injector.inject(text)
                 DispatchQueue.main.async { self.setStatus("Wstawiono: \(text)") }
             } catch {
-                // Tekst zostaje w menu i w schowku — użytkownik go nie traci.
                 NSLog("Wstawianie nieudane: \(error.localizedDescription)")
                 DispatchQueue.main.async {
-                    NSPasteboard.general.clearContents()
-                    NSPasteboard.general.setString(text, forType: .string)
-                    self.setStatus("\(error.localizedDescription) Tekst jest w schowku.")
+                    self.transcriptPanel.show(text: text)
+                    self.setStatus(error.localizedDescription)
                 }
             }
         }

@@ -1,39 +1,21 @@
 import AppKit
-import ApplicationServices
 
-/// Pływająca plakietka pokazywana przy kursorze tekstowym w trakcie dyktowania.
+/// Pionowa pastylka przy prawej krawędzi ekranu, pokazywana na czas dyktowania.
 ///
-/// Bez niej użytkownik po puszczeniu klawisza patrzy w puste pole i nie wie,
-/// czy aplikacja pracuje, czy się zawiesiła. Okno jest nieaktywne i przezroczyste
-/// dla myszy, więc nie przejmuje fokusu z pola, do którego wpisujemy tekst.
+/// Proporcje odwzorowane z Wispr Flow: 30×72 px przy szerokości ekranu 1920,
+/// 6 px od krawędzi, wyśrodkowana pionowo, 12 poziomych pasków w środku.
+/// Szerokość pasków napędza bieżący poziom sygnału z mikrofonu.
+///
+/// Okno jest nieaktywne i przezroczyste dla myszy, żeby nie odebrało kursora
+/// polu tekstowemu, do którego zaraz wpiszemy tekst.
 final class RecordingIndicator {
     enum State {
         case listening
         case processing
-
-        var text: String {
-            switch self {
-            case .listening:  return "Słucham…"
-            case .processing: return "Przetwarzam…"
-            }
-        }
-
-        var color: NSColor {
-            switch self {
-            case .listening:  return NSColor.systemBlue
-            case .processing: return NSColor.systemIndigo
-            }
-        }
-
-        var pulses: Bool {
-            self == .listening
-        }
     }
 
     private var panel: NSPanel?
-    private var label: NSTextField?
-    private var dot: NSView?
-    private var background: NSVisualEffectView?
+    private var view: PillView?
 
     // MARK: - Sterowanie
 
@@ -41,35 +23,50 @@ final class RecordingIndicator {
         let panel = self.panel ?? makePanel()
         self.panel = panel
 
-        label?.stringValue = state.text
-        label?.sizeToFit()
-        dot?.layer?.backgroundColor = NSColor.white.cgColor
-        background?.layer?.backgroundColor = state.color.withAlphaComponent(0.92).cgColor
-
-        resize()
+        view?.state = state
         reposition()
-
         panel.orderFrontRegardless()
-        setPulsing(state.pulses)
+        view?.startAnimating()
+    }
+
+    /// Poziom z mikrofonu (0–1). Wołane z wątku audio, więc przerzucamy na główny.
+    func update(level: Float) {
+        DispatchQueue.main.async { [weak self] in
+            self?.view?.push(level: level)
+        }
     }
 
     func hide() {
-        setPulsing(false)
+        view?.stopAnimating()
         panel?.orderOut(nil)
+    }
+
+    /// Rysuje pastylkę do obrazka — służy do obejrzenia wyglądu bez uruchamiania
+    /// całej aplikacji i bez dostępu do mikrofonu.
+    static func renderPreview(levels: [Float], state: State, scale: CGFloat = 6) -> NSImage {
+        let view = PillView(frame: NSRect(origin: .zero, size: PillView.size))
+        view.state = state
+        view.setPreviewLevels(levels)
+
+        let size = NSSize(width: PillView.size.width * scale, height: PillView.size.height * scale)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        NSGraphicsContext.current?.cgContext.scaleBy(x: scale, y: scale)
+        view.draw(view.bounds)
+        image.unlockFocus()
+        return image
     }
 
     // MARK: - Budowa okna
 
     private func makePanel() -> NSPanel {
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 150, height: 34),
+            contentRect: NSRect(origin: .zero, size: PillView.size),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )
 
-        // Plakietka nie może przejmować fokusu ani łapać kliknięć — inaczej
-        // odebrałaby kursor polu tekstowemu, do którego wpisujemy.
         panel.isFloatingPanel = true
         panel.level = .statusBar
         panel.backgroundColor = .clear
@@ -79,136 +76,181 @@ final class RecordingIndicator {
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
         panel.hidesOnDeactivate = false
 
-        let container = NSVisualEffectView(frame: panel.contentView?.bounds ?? .zero)
-        container.autoresizingMask = [.width, .height]
-        container.wantsLayer = true
-        container.layer?.cornerRadius = 17
-        container.layer?.masksToBounds = true
-        container.blendingMode = .behindWindow
-        container.state = .active
-        background = container
+        let view = PillView(frame: NSRect(origin: .zero, size: PillView.size))
+        panel.contentView = view
+        self.view = view
 
-        let dot = NSView(frame: NSRect(x: 14, y: 13, width: 8, height: 8))
-        dot.wantsLayer = true
-        dot.layer?.cornerRadius = 4
-        dot.layer?.backgroundColor = NSColor.white.cgColor
-        container.addSubview(dot)
-        self.dot = dot
-
-        let label = NSTextField(labelWithString: "Słucham…")
-        label.font = .systemFont(ofSize: 13, weight: .medium)
-        label.textColor = .white
-        label.backgroundColor = .clear
-        label.isBezeled = false
-        label.isEditable = false
-        label.sizeToFit()
-        label.frame.origin = NSPoint(x: 30, y: 8)
-        container.addSubview(label)
-        self.label = label
-
-        panel.contentView = container
         return panel
     }
 
-    private func resize() {
-        guard let panel, let label else { return }
-        let width = max(120, label.frame.width + 46)
-        panel.setContentSize(NSSize(width: width, height: 34))
-        label.frame.origin = NSPoint(x: 30, y: 9)
-    }
-
-    private func setPulsing(_ pulsing: Bool) {
-        guard let layer = dot?.layer else { return }
-
-        guard pulsing else {
-            layer.removeAllAnimations()
-            layer.opacity = 1
-            return
-        }
-
-        let pulse = CABasicAnimation(keyPath: "opacity")
-        pulse.fromValue = 1.0
-        pulse.toValue = 0.25
-        pulse.duration = 0.6
-        pulse.autoreverses = true
-        pulse.repeatCount = .infinity
-        pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        layer.add(pulse, forKey: "pulse")
-    }
-
-    // MARK: - Pozycjonowanie
-
     private func reposition() {
-        guard let panel else { return }
+        guard let panel, let screen = NSScreen.main else { return }
 
-        let size = panel.frame.size
-        let anchor = caretRect() ?? mouseRect()
+        let frame = screen.visibleFrame
+        let size = PillView.size
+        panel.setFrameOrigin(NSPoint(
+            x: frame.maxX - size.width - 8,
+            y: frame.midY - size.height / 2
+        ))
+    }
+}
 
-        // Współrzędne z Accessibility mają początek w LEWYM GÓRNYM rogu ekranu,
-        // a okna AppKit w lewym dolnym — stąd odbicie względem wysokości ekranu.
-        let screen = NSScreen.screens.first { $0.frame.contains(NSPoint(x: anchor.midX, y: anchor.midY)) }
-            ?? NSScreen.main
-        let screenFrame = screen?.frame ?? .zero
-        let flippedY = screenFrame.maxY - anchor.maxY
+/// Rysuje pastylkę i paski poziomu.
+private final class PillView: NSView {
+    static let size = NSSize(width: 28, height: 67)
 
-        var origin = NSPoint(x: anchor.minX, y: flippedY - size.height - 8)
+    private static let barCount = 12
+    private static let barHeight: CGFloat = 2.0
+    private static let barSpacing: CGFloat = 2.4
+    private static let minBarWidth: CGFloat = 3
+    private static let maxBarWidth: CGFloat = 17
 
-        // Gdy brakuje miejsca pod kursorem, pokazujemy plakietkę nad nim.
-        if origin.y < screenFrame.minY + 8 {
-            origin.y = flippedY + anchor.height + 8
+    /// Granat z ikony aplikacji (#304364).
+    private static let navy = NSColor(red: 0.188, green: 0.263, blue: 0.392, alpha: 1)
+
+    var state: RecordingIndicator.State = .listening {
+        didSet { needsDisplay = true }
+    }
+
+    /// Historia poziomów — najnowszy wchodzi na górze i spycha resztę w dół,
+    /// dzięki czemu paski płyną zamiast skakać w miejscu.
+    private var levels = [Float](repeating: 0, count: PillView.barCount)
+
+    /// Bufory z mikrofonu przychodzą ~11 razy na sekundę, a rysujemy 60 —
+    /// bez wygładzania animacja byłaby skokowa.
+    private var current: Float = 0
+    private var target: Float = 0
+
+    private var timer: Timer?
+    private var spinnerPhase: CGFloat = 0
+
+    // MARK: - Animacja
+
+    func startAnimating() {
+        guard timer == nil else { return }
+        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] _ in
+            self?.tick()
+        }
+        // .common — bez tego animacja zamiera, gdy otwarte jest menu aplikacji.
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+    }
+
+    func stopAnimating() {
+        timer?.invalidate()
+        timer = nil
+        levels = [Float](repeating: 0, count: Self.barCount)
+        current = 0
+        target = 0
+    }
+
+    func setPreviewLevels(_ values: [Float]) {
+        for (index, value) in values.prefix(Self.barCount).enumerated() {
+            levels[index] = value
+        }
+    }
+
+    func push(level: Float) {
+        // Mowa mieści się w wąskim zakresie RMS, więc rozciągamy go pierwiastkiem —
+        // inaczej paski ledwo drgały przy normalnej głośności.
+        target = min(1, (level * 12).squareRoot())
+    }
+
+    private func tick() {
+        current += (target - current) * 0.25
+        target *= 0.92                       // opadanie, gdy mikrofon milczy
+
+        levels.removeLast()
+        levels.insert(current, at: 0)
+
+        if state == .processing { spinnerPhase += 0.12 }
+
+        needsDisplay = true
+    }
+
+    // MARK: - Rysowanie
+
+    override func draw(_ dirtyRect: NSRect) {
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        drawCapsule(in: context)
+
+        switch state {
+        case .listening:  drawBars(in: context)
+        case .processing: drawProcessing(in: context)
+        }
+    }
+
+    private func drawCapsule(in context: CGContext) {
+        context.saveGState()
+        NSBezierPath(roundedRect: bounds, xRadius: bounds.width / 2, yRadius: bounds.width / 2).addClip()
+
+        // Delikatny gradient jak na ikonie — jaśniej u góry, ciemniej u dołu.
+        let colors = [
+            Self.navy.blended(withFraction: 0.12, of: .white)?.cgColor ?? Self.navy.cgColor,
+            Self.navy.blended(withFraction: 0.18, of: .black)?.cgColor ?? Self.navy.cgColor
+        ]
+        if let gradient = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                                     colors: colors as CFArray, locations: [0, 1]) {
+            // y rośnie do góry, więc jaśniejszy kolor idzie na górną krawędź.
+            context.drawLinearGradient(gradient,
+                                       start: CGPoint(x: 0, y: bounds.height),
+                                       end: CGPoint(x: 0, y: 0),
+                                       options: [])
+        }
+        context.restoreGState()
+    }
+
+    private func drawBars(in context: CGContext) {
+        let totalHeight = CGFloat(Self.barCount) * Self.barHeight
+            + CGFloat(Self.barCount - 1) * Self.barSpacing
+        var y = (bounds.height - totalHeight) / 2
+
+        context.setFillColor(NSColor.white.cgColor)
+
+        for index in 0..<Self.barCount {
+            // Soczewka: środkowe paski sięgają dalej niż skrajne. Bez tego
+            // kształt byłby prostokątny i wyglądał martwo.
+            let distance = abs(CGFloat(index) - CGFloat(Self.barCount - 1) / 2)
+            let envelope = 1 - pow(distance / (CGFloat(Self.barCount) / 2), 2) * 0.55
+
+            let width = Self.minBarWidth
+                + (Self.maxBarWidth - Self.minBarWidth) * CGFloat(levels[index]) * envelope
+
+            let rect = CGRect(x: (bounds.width - width) / 2, y: y, width: width, height: Self.barHeight)
+            context.addPath(CGPath(roundedRect: rect,
+                                   cornerWidth: Self.barHeight / 2,
+                                   cornerHeight: Self.barHeight / 2,
+                                   transform: nil))
+            context.fillPath()
+
+            y += Self.barHeight + Self.barSpacing
+        }
+    }
+
+    /// Stan po zakończeniu mówienia: kropki u góry i obracający się wskaźnik.
+    private func drawProcessing(in context: CGContext) {
+        context.setFillColor(NSColor.white.withAlphaComponent(0.55).cgColor)
+
+        // Kropki u góry, wskaźnik u dołu — jak w oryginale.
+        var y = bounds.height * 0.74
+        for _ in 0..<6 {
+            context.addPath(CGPath(ellipseIn: CGRect(x: bounds.width / 2 - 1, y: y, width: 2, height: 2),
+                                   transform: nil))
+            context.fillPath()
+            y -= 4.5
         }
 
-        // Nie pozwalamy jej wyjść poza krawędź ekranu.
-        origin.x = min(max(origin.x, screenFrame.minX + 8), screenFrame.maxX - size.width - 8)
-
-        panel.setFrameOrigin(origin)
-    }
-
-    /// Prostokąt kursora tekstowego w aktywnej aplikacji. Nie wszystkie
-    /// aplikacje to udostępniają — wtedy zwracamy nil i lądujemy przy myszy.
-    private func caretRect() -> CGRect? {
-        guard AXIsProcessTrusted() else { return nil }
-
-        let systemWide = AXUIElementCreateSystemWide()
-
-        var focused: AnyObject?
-        guard
-            AXUIElementCopyAttributeValue(systemWide, kAXFocusedUIElementAttribute as CFString, &focused) == .success,
-            let focusedElement = focused
-        else { return nil }
-
-        let element = focusedElement as! AXUIElement
-
-        var range: AnyObject?
-        guard
-            AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &range) == .success,
-            let selectedRange = range
-        else { return nil }
-
-        var bounds: AnyObject?
-        guard
-            AXUIElementCopyParameterizedAttributeValue(
-                element,
-                kAXBoundsForRangeParameterizedAttribute as CFString,
-                selectedRange,
-                &bounds
-            ) == .success,
-            let boundsValue = bounds
-        else { return nil }
-
-        var rect = CGRect.zero
-        guard AXValueGetValue(boundsValue as! AXValue, .cgRect, &rect) else { return nil }
-
-        // Zwinięty kursor bywa zerowej szerokości — to nadal poprawna pozycja.
-        guard rect.height > 0 else { return nil }
-        return rect
-    }
-
-    private func mouseRect() -> CGRect {
-        let location = NSEvent.mouseLocation
-        let screenHeight = NSScreen.main?.frame.maxY ?? 0
-        // NSEvent.mouseLocation jest w układzie AppKit — zamieniamy na ekranowy
-        // z początkiem u góry, żeby reszta liczenia miała jeden układ.
-        return CGRect(x: location.x, y: screenHeight - location.y, width: 0, height: 20)
+        let center = CGPoint(x: bounds.width / 2, y: bounds.height * 0.28)
+        let spokes = 8
+        context.setLineWidth(1.4)
+        context.setLineCap(.round)
+        for index in 0..<spokes {
+            let angle = spinnerPhase + CGFloat(index) * (.pi * 2 / CGFloat(spokes))
+            let alpha = 0.25 + 0.75 * (CGFloat(index) / CGFloat(spokes))
+            context.setStrokeColor(NSColor.white.withAlphaComponent(alpha).cgColor)
+            context.move(to: CGPoint(x: center.x + cos(angle) * 2.5, y: center.y + sin(angle) * 2.5))
+            context.addLine(to: CGPoint(x: center.x + cos(angle) * 5.5, y: center.y + sin(angle) * 5.5))
+            context.strokePath()
+        }
     }
 }
