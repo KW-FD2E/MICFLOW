@@ -296,3 +296,75 @@ extension TestRecording {
         exit(0)
     }
 }
+
+
+extension TestRecording {
+    /// Sprawdza rozpoznawanie gestów na prawdziwym HotkeyMonitor.
+    static func testGestures() {
+        var log: [String] = []
+
+        func scenariusz(_ nazwa: String, _ kroki: (HotkeyMonitor) -> Void, oczekiwane: [String]) {
+            let monitor = HotkeyMonitor()
+            log = []
+            monitor.isRecording = { log.contains("start") && !log.contains("stop") }
+            monitor.onStart = { log.append("start") }
+            monitor.onStop = { log.append("stop") }
+
+            kroki(monitor)
+
+            let ok = log == oczekiwane
+            print("\(ok ? "OK  " : "BŁĄD") \(nazwa)")
+            print("       otrzymano: \(log)  oczekiwano: \(oczekiwane)")
+            if !ok { exitCode = 1 }
+        }
+
+        /// Przepuszcza pętlę zdarzeń, żeby zadziałały timery.
+        func poczekaj(_ seconds: TimeInterval) {
+            RunLoop.current.run(until: Date().addingTimeInterval(seconds))
+        }
+
+        scenariusz("przytrzymanie klawisza", { m in
+            m.handlePress()
+            poczekaj(0.5)              // dłużej niż próg przytrzymania
+            m.handleRelease()
+        }, oczekiwane: ["start", "stop"])
+
+        scenariusz("dwuklik włącza tryb bez trzymania", { m in
+            m.handlePress()
+            poczekaj(0.1)
+            m.handleRelease()          // krótko — czeka na drugi klik
+            poczekaj(0.1)
+            m.handlePress()            // drugi klik
+            m.handleRelease()
+            poczekaj(0.7)              // nagranie ma TRWAĆ mimo upływu czasu
+        }, oczekiwane: ["start"])
+
+        scenariusz("dwuklik, potem kliknięcie kończy", { m in
+            m.handlePress()
+            poczekaj(0.1)
+            m.handleRelease()
+            poczekaj(0.1)
+            m.handlePress()
+            m.handleRelease()
+            poczekaj(0.6)
+            m.handlePress()            // kliknięcie kończące
+        }, oczekiwane: ["start", "stop"])
+
+        scenariusz("pojedynczy krótki klik kończy sam", { m in
+            m.handlePress()
+            poczekaj(0.1)
+            m.handleRelease()
+            poczekaj(0.7)              // drugi klik nie przyszedł
+        }, oczekiwane: ["start", "stop"])
+
+        print(exitCode == 0 ? "\nWszystkie gesty rozpoznane poprawnie." : "\nSĄ BŁĘDY")
+        exit(exitCode)
+    }
+
+    private static var exitCode: Int32 {
+        get { _exitCode }
+        set { _exitCode = newValue }
+    }
+}
+
+private var _exitCode: Int32 = 0

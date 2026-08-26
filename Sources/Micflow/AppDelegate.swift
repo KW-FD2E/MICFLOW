@@ -34,12 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         get { DictationLanguage(rawValue: UserDefaults.standard.string(forKey: "language") ?? "") ?? .polish }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: "language") }
     }
-    private var modeMenuItems: [HotkeyMode: NSMenuItem] = [:]
 
-    private var hotkeyMode: HotkeyMode {
-        get { HotkeyMode(rawValue: UserDefaults.standard.string(forKey: "hotkeyMode") ?? "") ?? .toggle }
-        set { UserDefaults.standard.set(newValue.rawValue, forKey: "hotkeyMode") }
-    }
     private var soundMenuItem: NSMenuItem?
     private var loginMenuItem: NSMenuItem?
 
@@ -88,9 +83,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         recorder.onLevel = { [weak self] level in self?.indicator.update(level: level) }
 
         hotkey.isRecording = { [weak self] in self?.recorder.isRecording ?? false }
-        hotkey.onPress = { [weak self] in self?.startRecording() }
-        hotkey.onRelease = { [weak self] in self?.stopRecording() }
-        hotkey.start(choice: hotkeyChoice, mode: hotkeyMode)
+        hotkey.onStart = { [weak self] in self?.startRecording() }
+        hotkey.onStop = { [weak self] in self?.stopRecording() }
+        hotkey.start(choice: hotkeyChoice)
 
         if !Permissions.hasAccessibility(prompt: true) {
             setStatus("Przyznaj Accessibility, by działał skrót")
@@ -168,19 +163,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         hotkeyItem.submenu = hotkeyMenu
         menu.addItem(hotkeyItem)
-
-        let modeItem = NSMenuItem(title: "Sposób nagrywania", action: nil, keyEquivalent: "")
-        let modeMenu = NSMenu()
-        for mode in HotkeyMode.allCases {
-            let item = NSMenuItem(title: mode.title, action: #selector(selectMode(_:)), keyEquivalent: "")
-            item.target = self
-            item.representedObject = mode.rawValue
-            item.state = (mode == hotkeyMode) ? .on : .off
-            modeMenu.addItem(item)
-            modeMenuItems[mode] = item
-        }
-        modeItem.submenu = modeMenu
-        menu.addItem(modeItem)
 
         let sound = NSMenuItem(title: "Dźwięki", action: #selector(toggleSounds), keyEquivalent: "")
         sound.target = self
@@ -459,6 +441,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Element z fokusem: \(lastFocusRole)
         Skrót:          \(hotkeyChoice.title)
         Skrót zadziałał: \(hotkey.pressCount) raz(y)
+        Ostatni gest:   \(hotkey.lastGesture)
         Ostatni klawisz: \(hotkey.lastSeenKeyCode.map(String.init) ?? "żaden nie dotarł")
         Przy starcie:   \(LaunchAtLogin.isEnabled ? "TAK" : "nie")
         Dźwięki:        \(soundsEnabled ? "włączone" : "wyłączone")\(sounds.isWorking ? "" : " — silnik audio NIE działa")
@@ -520,23 +503,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item.state = (candidate == choice) ? .on : .off
         }
 
-        hotkey.start(choice: choice, mode: hotkeyMode)
+        hotkey.start(choice: choice)
         setStatus("Skrót: \(choice.title)")
-    }
-
-    @objc private func selectMode(_ sender: NSMenuItem) {
-        guard
-            let raw = sender.representedObject as? String,
-            let mode = HotkeyMode(rawValue: raw)
-        else { return }
-
-        hotkeyMode = mode
-        for (candidate, item) in modeMenuItems {
-            item.state = (candidate == mode) ? .on : .off
-        }
-
-        hotkey.start(choice: hotkeyChoice, mode: mode)
-        setStatus(mode.title)
     }
 
     @objc private func toggleSounds() {

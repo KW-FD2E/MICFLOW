@@ -378,3 +378,30 @@ pastylka.
 albo wypisują decyzję o miejscu wpisania, bez uruchamiania aplikacji
 i bez mikrofonu. Wyłapały już odwrócony gradient i wskaźnik przetwarzania
 po złej stronie pastylki.
+
+
+### Rozpoznawanie gestu skrótu
+
+Nie ma już przełącznika trybu w menu — monitor sam rozstrzyga, czy klawisz
+został przytrzymany, czy kliknięty dwa razy.
+
+Sedno trudności: **w chwili puszczenia klawisza nie wiadomo jeszcze**, czy było
+to krótkie przytrzymanie, czy pierwsze z dwóch kliknięć. Dlatego nagrywanie
+rusza natychmiast przy wciśnięciu — inaczej przytrzymanie gubiłoby pierwsze
+słowa — a rozstrzygnięcie zapada przy puszczeniu:
+
+| Gest | Rozpoznanie |
+|---|---|
+| Puszczenie po ≥ 0,35 s | przytrzymanie → koniec nagrania |
+| Puszczenie < 0,35 s | czekamy 0,40 s na drugie kliknięcie |
+| Drugie kliknięcie w oknie | tryb bez trzymania, nagrywa dalej |
+| Drugie kliknięcie nie przyszło | krótki klik → koniec nagrania |
+| Kliknięcie w trybie bez trzymania | koniec nagrania |
+
+Stan resetuje się, gdy nagranie skończyło się poza skrótem (limit czasu,
+przycisk w menu) — bez tego kolejne kliknięcie próbowałoby zatrzymać
+nieistniejące nagranie.
+
+Logika jest sprawdzana przez `--test-gestures` na prawdziwym `HotkeyMonitor`,
+czterema scenariuszami. Przy tylu stanach sprawdzenie „na oko" byłoby
+nieodpowiedzialne.
