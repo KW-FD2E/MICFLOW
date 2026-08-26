@@ -25,11 +25,17 @@ final class TextInjector {
     /// Wysyła tekst jako zdarzenia klawiatury. Wariant ze schowkiem został
     /// usunięty — był szybszy przy długim tekście, ale na ułamek sekundy
     /// podmieniał zawartość schowka użytkownika.
-    /// Role, które przyjmują wpisywany tekst. `AXWebArea` obejmuje pola
-    /// w przeglądarkach, `AXGroup` — edytory rysujące własne widoki.
-    private static let textRoles: Set<String> = [
-        kAXTextFieldRole, kAXTextAreaRole, kAXComboBoxRole,
-        "AXWebArea", "AXSearchField",
+    /// Role, które na pewno NIE przyjmują tekstu.
+    ///
+    /// Odwracamy pytanie: zamiast wyliczać, co jest polem tekstowym — czego
+    /// aplikacje Electronowe i tak nie deklarują — wykluczamy to, co polem
+    /// na pewno nie jest. Wpisywanie w przycisk byłoby groźne, bo spacja
+    /// wciska przycisk, a więc uruchamia przypadkowe akcje.
+    private static let nonTextRoles: Set<String> = [
+        "AXButton", "AXCheckBox", "AXRadioButton", "AXPopUpButton",
+        "AXMenuItem", "AXMenuButton", "AXMenuBarItem", "AXSlider",
+        "AXStepper", "AXDisclosureTriangle", "AXTabGroup", "AXToolbar",
+        "AXScrollBar", "AXImage", "AXProgressIndicator",
     ]
 
     /// Czy w aktywnej aplikacji stoi kursor w polu, które przyjmie tekst.
@@ -90,9 +96,10 @@ final class TextInjector {
 
         // Aplikacje Electronowe (m.in. Claude) wystawiają szczątkowe drzewo
         // Accessibility — bywa, że nie ma ani zakresu zaznaczenia, ani znanej
-        // roli. Skoro jednak COŚ ma fokus, jest gdzie pisać. Panel zostawiamy
-        // na przypadek, gdy fokusu nie ma w ogóle.
-        return roleName ?? "AXNieznana"
+        // roli. Skoro jednak coś ma fokus i nie jest to przycisk ani suwak,
+        // zakładamy, że jest gdzie pisać.
+        guard let roleName else { return "AXNieznana" }
+        return nonTextRoles.contains(roleName) ? nil : roleName
     }
 
     func inject(_ text: String) throws {
@@ -109,11 +116,8 @@ final class TextInjector {
     /// wysłana wypowiedź. Dyktowana mowa i tak rzadko wymaga wielu akapitów,
     /// a ryzyko przypadkowego wysłania jest zbyt kosztowne.
     static func singleLine(_ text: String) -> String {
-        text.replacingOccurrences(of: "\r\n", with: " ")
-            .replacingOccurrences(of: "\n", with: " ")
-            .replacingOccurrences(of: "\r", with: " ")
-            .replacingOccurrences(of: "  ", with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        text.split(whereSeparator: \.isWhitespace)
+            .joined(separator: " ")
     }
 
     // MARK: - Wpisywanie znak po znaku
