@@ -60,7 +60,14 @@ na panel emoji.
 ## Używanie
 
 Domyślnie: **dwuklik `fn`** zaczyna nagrywanie, kolejne kliknięcie kończy.
-Przy kursorze pojawia się niebieska plakietka „Słucham…".
+
+Przy prawej krawędzi ekranu pojawia się granatowa pastylka z paskami
+reagującymi na głos. Po zakończeniu mówienia przechodzi w stan przetwarzania
+i znika, gdy tekst trafi na miejsce.
+
+Tekst wpisuje się tam, gdzie stoi kursor. Jeśli nie ma gdzie pisać — bo
+kliknąłeś w pulpit — zamiast tego pojawia się panel z podyktowanym tekstem
+i przyciskiem kopiowania, który znika sam po 15 sekundach.
 
 W menu paska można zmienić język, skrót, sposób nagrywania (dwuklik albo
 przytrzymanie), dźwięki i autostart. **Diagnostyka…** pokazuje stan wszystkich

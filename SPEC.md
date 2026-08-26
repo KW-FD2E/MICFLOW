@@ -312,3 +312,69 @@ Działa natomiast przekazanie **repozytorium** i uruchomienie `scripts/setup.sh`
 który pobiera zależności, buduje i instaluje. Wymagania: Mac z Apple Silicon
 (MLX i Metal), Xcode Command Line Tools, `python3`, ~7 GB do pobrania.
 Aplikacja zbudowana lokalnie nie podlega kwarantannie Gatekeepera.
+
+
+## 8. Wskaźnik, panel i wpisywanie — stan po dopracowaniu
+
+### Pastylka przy krawędzi
+
+Wskaźnik wzorowany na Wispr Flow, z pomiarów zdjętych z nagrania ekranu:
+30×72 px przy szerokości ekranu 1920, 6 px od krawędzi, wyśrodkowany pionowo,
+12 poziomych pasków. Odwzorowany w granacie ikony (#304364) zamiast czerni.
+
+Szerokość pasków napędza **RMS**, nie szczyt — szczyt skakał od stuknięcia
+w klawiaturę. Mikrofon oddaje bufory ~11 razy na sekundę, a rysujemy 60, więc
+między odczytami wygładzamy; bez tego ruch był skokowy.
+
+Stan przetwarzania: kropki u góry, obracający się wskaźnik u dołu.
+
+Rysowanie idzie w domyślnym układzie AppKit, nie w `isFlipped`. Dzięki temu
+podgląd offscreen (`--test-indicator`) daje **ten sam** wynik co ekran —
+przy `isFlipped` podgląd kłamał i przepuścił odwrócony gradient.
+
+### Panel z tekstem
+
+Pokazywany, gdy nie ma gdzie wpisać tekstu. Ten sam granat, przyciski
+kopiowania i zamknięcia w prawym górnym rogu, samoczynne znikanie po 15 s.
+W odróżnieniu od pastylki **przyjmuje kliknięcia**, ale nie przejmuje fokusu.
+
+### Gdzie trafia tekst — dwie pułapki
+
+**Electron nie udostępnia drzewa Accessibility**, dopóki program pomocniczy
+wprost o to nie poprosi przez `AXManualAccessibility`. Bez tego pytanie
+o element z fokusem nie zwracało niczego i MICFLOW pokazywał panel zamiast
+wpisać tekst w Claude, Slacku czy VS Code.
+
+Dlatego punktem wyjścia jest **aktywna aplikacja**, nie drzewo Accessibility:
+jeśli cokolwiek jest na wierzchu, użytkownik tam pisze. Panel zostaje na dwa
+przypadki — Finder na wierzchu (kliknięcie w pulpit) i fokus na przycisku,
+gdzie wpisywanie byłoby groźne, bo spacja wciska przycisk.
+
+Zapytania Accessibility mają limit **0,4 s**. Idą przez IPC do obcej aplikacji,
+a wołamy je przy starcie nagrania — zawieszona aplikacja zjadłaby pierwsze słowa.
+
+### Znaki nowej linii wysyłały wiadomość
+
+`CGEvent` wpisuje znak nowej linii jako **Enter**, a w oknie czatu Enter wysyła
+wiadomość. Podyktowany tekst z łamaniem linii szedł więc jako przedwcześnie
+wysłana wypowiedź. `singleLine()` zwija wszystkie białe znaki do pojedynczych
+spacji. Świadomie tracimy wielolinijkowość — mowa rzadko jej wymaga, a
+przypadkowe wysłanie jest znacznie kosztowniejsze.
+
+### Ikona paska menu
+
+`scripts/make_menubar_icon.py` wycina mikrofon z `Resources/icon-source.png`.
+Tło jest wyraźnie niebieskie (B ≫ R), a mikrofon czarny lub szary (R≈G≈B),
+więc rozdziela je kryterium barwy, nie jasności. Krawędź zaokrąglonego kwadratu
+odpada przez zawężenie obszaru i odsianie plam mniejszych niż 300 px.
+
+Wynik jest obrazkiem szablonowym, więc macOS sam odwraca go w trybie ciemnym
+i jasnym. Ikona **nie zmienia** koloru przy nagrywaniu — o stanie informuje
+pastylka.
+
+### Tryby podglądu
+
+`--test-indicator`, `--test-panel` i `--test-focus` renderują interfejs do PNG
+albo wypisują decyzję o miejscu wpisania, bez uruchamiania aplikacji
+i bez mikrofonu. Wyłapały już odwrócony gradient i wskaźnik przetwarzania
+po złej stronie pastylki.
