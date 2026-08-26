@@ -24,6 +24,11 @@ else
     echo "UWAGA: brak Resources/MICFLOW.icns — pakiet dostanie ikone domyslna." >&2
 fi
 
+# Ikona paska menu — mikrofon wyciety z ikony aplikacji.
+if [ -f "$ROOT/Resources/menubar-mic.png" ]; then
+    cp "$ROOT/Resources/menubar-mic.png" "$APP/Contents/Resources/menubar-mic.png"
+fi
+
 # Skrypt czyszczacy jedzie w pakiecie - dzieki temu jest zawsze w wersji
 # zgodnej z binarka i nie zalezy od tego, gdzie lezy katalog projektu.
 cp "$ROOT/scripts/cleanup.py" "$APP/Contents/Resources/cleanup.py"

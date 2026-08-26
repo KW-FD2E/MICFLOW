@@ -116,7 +116,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         statusItem = item
 
-        item.button?.image = NSImage(systemSymbolName: "mic", accessibilityDescription: "MICFLOW")
+        item.button?.image = Self.menuBarIcon()
 
         let menu = NSMenu()
 
@@ -210,9 +210,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusMenuItem?.title = text
     }
 
+    /// Mikrofon wycięty z ikony aplikacji (scripts/make_menubar_icon.py).
+    /// Jako obrazek szablonowy macOS sam odwraca go w trybie ciemnym i jasnym.
+    private static func menuBarIcon() -> NSImage? {
+        guard
+            let url = Bundle.main.resourceURL?.appendingPathComponent("menubar-mic.png"),
+            let image = NSImage(contentsOf: url)
+        else {
+            // Przy uruchomieniu spoza pakietu zostaje symbol systemowy.
+            return NSImage(systemSymbolName: "mic", accessibilityDescription: "MICFLOW")
+        }
+
+        let height: CGFloat = 17
+        image.size = NSSize(width: image.size.width * height / image.size.height, height: height)
+        image.isTemplate = true
+        return image
+    }
+
     private func updateIcon(recording: Bool) {
-        let symbol = recording ? "mic.fill" : "mic"
-        statusItem?.button?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: "MICFLOW")
+        // Ten sam mikrofon, tylko na czerwono — obrazek szablonowy przyjmuje tint.
         statusItem?.button?.contentTintColor = recording ? .systemRed : nil
         toggleMenuItem?.title = recording ? "Zatrzymaj nagrywanie" : "Rozpocznij nagrywanie"
     }
