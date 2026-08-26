@@ -38,68 +38,52 @@ final class TextInjector {
         "AXScrollBar", "AXImage", "AXProgressIndicator",
     ]
 
-    /// Czy w aktywnej aplikacji stoi kursor w polu, które przyjmie tekst.
+    /// Gdzie trafi podyktowany tekst.
     ///
-    /// Decyduje, czy wpisać tekst wprost, czy pokazać panel z możliwością
-    /// skopiowania. Celowo przechyla się w stronę wpisywania: panel ma się
-    /// pokazywać wyłącznie wtedy, gdy naprawdę nie ma dokąd pisać.
-    ///
-    /// - Returns: nazwa roli znalezionego elementu albo nil.
+    /// - Returns: opis miejsca, gdy jest gdzie pisać; `nil`, gdy nie ma.
+    ///   `nil` oznacza pokazanie panelu z tekstem do skopiowania.
     @discardableResult
     static func focusedTextRole() -> String? {
         guard AXIsProcessTrusted() else { return nil }
 
-        let systemWide = AXUIElementCreateSystemWide()
+        // Punktem wyjścia jest aktywna aplikacja, nie samo drzewo Accessibility.
+        // Jeśli cokolwiek jest na wierzchu, użytkownik tam właśnie pisze.
+        guard let frontmost = NSWorkspace.shared.frontmostApplication else { return nil }
+        guard frontmost.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return nil }
 
-        // Zapytania Accessibility idą przez IPC do obcej aplikacji. Bez limitu
-        // czasu zawieszona aplikacja zablokowałaby nas na kilka sekund —
-        // a wołamy to przy starcie nagrania, więc przepadłyby pierwsze słowa.
+        let name = frontmost.localizedName ?? "?"
+        let application = AXUIElementCreateApplication(frontmost.processIdentifier)
+        AXUIElementSetMessagingTimeout(application, 0.4)
+
+        // Aplikacje na Electronie (Claude, Slack, VS Code) budują drzewo
+        // Accessibility dopiero, gdy program pomocniczy wprost o to poprosi.
+        // Bez tego pytanie o element z fokusem nie zwraca niczego.
+        AXUIElementSetAttributeValue(application, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+
+        let systemWide = AXUIElementCreateSystemWide()
         AXUIElementSetMessagingTimeout(systemWide, 0.4)
 
         var focused: AnyObject?
-        guard
-            AXUIElementCopyAttributeValue(
-                systemWide,
-                kAXFocusedUIElementAttribute as CFString,
-                &focused
-            ) == .success,
-            let focusedElement = focused
-        else { return nil }
+        if AXUIElementCopyAttributeValue(
+            systemWide, kAXFocusedUIElementAttribute as CFString, &focused
+        ) == .success, let focusedElement = focused {
+            let element = focusedElement as! AXUIElement
+            AXUIElementSetMessagingTimeout(element, 0.4)
 
-        let element = focusedElement as! AXUIElement
-        AXUIElementSetMessagingTimeout(element, 0.4)
-
-        // Pomijamy własne okna — pastylka i panel nie są miejscem na tekst.
-        var pid: pid_t = 0
-        if AXUIElementGetPid(element, &pid) == .success, pid == ProcessInfo.processInfo.processIdentifier {
-            return nil
+            var role: AnyObject?
+            if AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role) == .success,
+               let roleName = role as? String {
+                // Przycisk czy suwak tekstu nie przyjmie, a spacja by go wcisnęła.
+                return nonTextRoles.contains(roleName) ? nil : "\(roleName) w \(name)"
+            }
         }
 
-        var role: AnyObject?
-        let roleName = AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role) == .success
-            ? (role as? String)
-            : nil
-
-        // Zakres zaznaczenia udostępniają tylko elementy tekstowe —
-        // to najpewniejszy sygnał, niezależny od zadeklarowanej roli.
-        var range: AnyObject?
-        if AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &range) == .success {
-            return roleName ?? "AXTextRange"
-        }
-
-        // Pole, którego wartość da się ustawić, też przyjmie tekst.
-        var settable = DarwinBoolean(false)
-        if AXUIElementIsAttributeSettable(element, kAXValueAttribute as CFString, &settable) == .success,
-           settable.boolValue {
-            return roleName ?? "AXSettableValue"
-        }
-
-        // Aplikacje Electronowe (m.in. Claude) wystawiają szczątkowe drzewo
-        // Accessibility — bywa, że nie ma ani zakresu zaznaczenia, ani znanej
-        // roli. Skoro jednak coś ma fokus i nie jest to przycisk ani suwak,
-        // zakładamy, że jest gdzie pisać.
-        guard let roleName else { return "AXNieznana" }
-        return nonTextRoles.contains(roleName) ? nil : roleName
+        // Nie udało się nic ustalić. Kliknięcie w pulpit wysuwa na wierzch
+        // Findera i wtedy naprawdę nie ma gdzie pisać — w każdym innym wypadku
+        // zakładamy, że jest, bo blokada dotyczy drzewa Accessibility,
+        // a nie samej możliwości wpisywania.
+        if frontmost.bundleIdentifier == "com.apple.finder" { return nil }
+        return "nieustalone w \(name)"
     }
 
     func inject(_ text: String) throws {

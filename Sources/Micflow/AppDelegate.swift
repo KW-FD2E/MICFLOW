@@ -228,8 +228,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateIcon(recording: Bool) {
-        // Ten sam mikrofon, tylko na czerwono — obrazek szablonowy przyjmuje tint.
-        statusItem?.button?.contentTintColor = recording ? .systemRed : nil
+        // Ikona w pasku zostaje niezmieniona — o stanie nagrywania informuje
+        // pastylka przy krawędzi ekranu, więc barwienie ikony tylko rozpraszało.
         toggleMenuItem?.title = recording ? "Zatrzymaj nagrywanie" : "Rozpocznij nagrywanie"
     }
 
@@ -419,8 +419,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // tekstowego. Jedno trafienie wystarczy, żeby wpisać — pomyłka w tę
         // stronę jest tańsza niż niepotrzebny panel.
         let roleNow = TextInjector.focusedTextRole()
-        NSLog("Pole tekstowe przy wstawianiu: %@ (przy starcie: %@)",
-              roleNow ?? "brak", hadTextFieldAtStart ? "tak" : "nie")
+        lastFocusRole = "\(roleNow ?? "brak") / start: \(hadTextFieldAtStart ? "tak" : "nie")"
+        NSLog("Miejsce na tekst przy wstawianiu: %@", lastFocusRole)
 
         guard hadTextFieldAtStart || roleNow != nil else {
             transcriptPanel.show(text: text)

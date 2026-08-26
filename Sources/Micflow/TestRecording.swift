@@ -273,3 +273,26 @@ extension TestRecording {
         exit(0)
     }
 }
+
+
+extension TestRecording {
+    /// Wypisuje co sekundę, gdzie trafiłby teraz podyktowany tekst.
+    /// Pozwala sprawdzić zachowanie w konkretnej aplikacji bez dyktowania.
+    static func watchFocus(seconds: Int = 12) {
+        guard AXIsProcessTrusted() else {
+            print("BŁĄD: brak uprawnienia Accessibility dla tej binarki.")
+            print("Ten test wymaga zgody przyznanej dokładnie temu plikowi.")
+            exit(1)
+        }
+
+        print("Przełączaj się między aplikacjami i klikaj w pola tekstowe.\n")
+        for remaining in stride(from: seconds, to: 0, by: -1) {
+            let role = TextInjector.focusedTextRole()
+            let decision = role == nil ? "PANEL (nie ma gdzie pisać)" : "WPISZE → \(role!)"
+            print("  \(decision)")
+            _ = remaining
+            Thread.sleep(forTimeInterval: 1)
+        }
+        exit(0)
+    }
+}

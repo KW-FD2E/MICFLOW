@@ -22,6 +22,8 @@ if let index = CommandLine.arguments.firstIndex(of: "--test-record") {
     let text = CommandLine.arguments[safe: index + 1]
         ?? "Zażółć gęślą jaźń — ĄĆĘŁŃÓŚŹŻ, test wpisywania 123."
     TestRecording.inject(text: text)
+} else if CommandLine.arguments.contains("--test-focus") {
+    TestRecording.watchFocus()
 } else if CommandLine.arguments.contains("--test-panel") {
     TestRecording.renderPanel()
 } else if CommandLine.arguments.contains("--test-indicator") {
