@@ -43,6 +43,26 @@ final class TranscriptPanel {
         panel?.orderOut(nil)
     }
 
+    /// Rysuje panel do obrazka — pozwala obejrzeć układ bez uruchamiania
+    /// całej aplikacji i wyłapać błędy zanim zobaczy je użytkownik.
+    func renderPreview(text: String) -> NSImage? {
+        self.text = text
+        let panel = self.panel ?? makePanel()
+        self.panel = panel
+        textView?.string = text
+        resize(for: text)
+
+        guard
+            let content = panel.contentView,
+            let rep = content.bitmapImageRepForCachingDisplay(in: content.bounds)
+        else { return nil }
+
+        content.cacheDisplay(in: content.bounds, to: rep)
+        let image = NSImage(size: content.bounds.size)
+        image.addRepresentation(rep)
+        return image
+    }
+
     // MARK: - Budowa
 
     private func makePanel() -> NSPanel {

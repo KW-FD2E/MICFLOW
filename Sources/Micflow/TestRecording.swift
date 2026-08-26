@@ -245,3 +245,31 @@ extension TestRecording {
         exit(0)
     }
 }
+
+
+extension TestRecording {
+    /// Podgląd panelu z tekstem — sprawdza układ i to, czy w ogóle się buduje.
+    static func renderPanel() {
+        let teksty = [
+            "Krótkie zdanie.",
+            "Muszę wysłać temu klientowi ten deadline, bo meeting jest jutro rano i trzeba to zrobić przed standupem. Daj znać, czy to gra.",
+        ]
+
+        let panel = TranscriptPanel()
+        for (index, tekst) in teksty.enumerated() {
+            guard
+                let image = panel.renderPreview(text: tekst),
+                let tiff = image.tiffRepresentation,
+                let rep = NSBitmapImageRep(data: tiff),
+                let png = rep.representation(using: .png, properties: [:])
+            else {
+                print("BŁĄD: nie udało się wyrenderować panelu \(index)")
+                continue
+            }
+            let path = "/tmp/klatki/panel-\(index).png"
+            try? png.write(to: URL(fileURLWithPath: path))
+            print("zapisano \(path) — rozmiar \(Int(image.size.width))x\(Int(image.size.height))")
+        }
+        exit(0)
+    }
+}

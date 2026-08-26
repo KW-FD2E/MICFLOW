@@ -43,10 +43,17 @@ final class TextInjector {
     static func focusedTextRole() -> String? {
         guard AXIsProcessTrusted() else { return nil }
 
+        let systemWide = AXUIElementCreateSystemWide()
+
+        // Zapytania Accessibility idą przez IPC do obcej aplikacji. Bez limitu
+        // czasu zawieszona aplikacja zablokowałaby nas na kilka sekund —
+        // a wołamy to przy starcie nagrania, więc przepadłyby pierwsze słowa.
+        AXUIElementSetMessagingTimeout(systemWide, 0.4)
+
         var focused: AnyObject?
         guard
             AXUIElementCopyAttributeValue(
-                AXUIElementCreateSystemWide(),
+                systemWide,
                 kAXFocusedUIElementAttribute as CFString,
                 &focused
             ) == .success,
@@ -54,6 +61,7 @@ final class TextInjector {
         else { return nil }
 
         let element = focusedElement as! AXUIElement
+        AXUIElementSetMessagingTimeout(element, 0.4)
 
         // Pomijamy własne okna — pastylka i panel nie są miejscem na tekst.
         var pid: pid_t = 0
