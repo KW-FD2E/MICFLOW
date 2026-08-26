@@ -368,3 +368,41 @@ extension TestRecording {
 }
 
 private var _exitCode: Int32 = 0
+
+
+extension TestRecording {
+    /// Sprawdza decyzję „wpisać czy pokazać panel" bez klikania po ekranie.
+    static func testDecision() {
+        var bledy = 0
+
+        func sprawdz(_ opis: String, role: String?, bundle: String?, maWpisac: Bool) {
+            let wynik = TextInjector.decision(role: role, bundleIdentifier: bundle)
+            let wpisuje = wynik != nil
+            let ok = wpisuje == maWpisac
+            if !ok { bledy += 1 }
+            let co = wpisuje ? "WPISZE" : "PANEL "
+            print("\(ok ? "OK  " : "BŁĄD") \(co)  \(opis)")
+        }
+
+        print("— gdzie POWINIEN wpisać —")
+        sprawdz("Notatki, pole tekstowe", role: "AXTextArea", bundle: "com.apple.Notes", maWpisac: true)
+        sprawdz("Safari, pasek adresu", role: "AXTextField", bundle: "com.apple.Safari", maWpisac: true)
+        sprawdz("Claude, Electron ukrywa role", role: nil, bundle: "com.anthropic.claudefordesktop", maWpisac: true)
+        sprawdz("Claude, zgłasza AXWebArea", role: "AXWebArea", bundle: "com.anthropic.claudefordesktop", maWpisac: true)
+        sprawdz("Electron, dziwna rola AXGroup", role: "AXGroup", bundle: "com.tinyspeck.slackmacgap", maWpisac: true)
+        sprawdz("Finder, pole zmiany nazwy", role: "AXTextField", bundle: "com.apple.finder", maWpisac: true)
+
+        print("\n— gdzie POWINIEN pokazać panel —")
+        sprawdz("pulpit: lista ikon Findera", role: "AXList", bundle: "com.apple.finder", maWpisac: false)
+        sprawdz("pulpit: obszar przewijania", role: "AXScrollArea", bundle: "com.apple.finder", maWpisac: false)
+        sprawdz("Finder bez ustalonej roli", role: nil, bundle: "com.apple.finder", maWpisac: false)
+        sprawdz("okno Findera, tabela plików", role: "AXTable", bundle: "com.apple.finder", maWpisac: false)
+        sprawdz("fokus na przycisku", role: "AXButton", bundle: "com.apple.Notes", maWpisac: false)
+        sprawdz("fokus na suwaku", role: "AXSlider", bundle: "com.apple.Music", maWpisac: false)
+        sprawdz("całe okno bez kontrolki", role: "AXWindow", bundle: "com.apple.Preview", maWpisac: false)
+        sprawdz("zwykły tekst, nie do edycji", role: "AXStaticText", bundle: "com.apple.Preview", maWpisac: false)
+
+        print(bledy == 0 ? "\nWszystkie przypadki zgodne." : "\nBŁĘDÓW: \(bledy)")
+        exit(bledy == 0 ? 0 : 1)
+    }
+}

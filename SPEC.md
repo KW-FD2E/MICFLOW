@@ -346,9 +346,21 @@ o element z fokusem nie zwracało niczego i MICFLOW pokazywał panel zamiast
 wpisać tekst w Claude, Slacku czy VS Code.
 
 Dlatego punktem wyjścia jest **aktywna aplikacja**, nie drzewo Accessibility:
-jeśli cokolwiek jest na wierzchu, użytkownik tam pisze. Panel zostaje na dwa
-przypadki — Finder na wierzchu (kliknięcie w pulpit) i fokus na przycisku,
-gdzie wpisywanie byłoby groźne, bo spacja wciska przycisk.
+jeśli cokolwiek jest na wierzchu, użytkownik tam pisze.
+
+To poluzowanie miało jednak skutek uboczny: kliknięcie w pulpit wysuwa na
+wierzch **Findera**, który zgłasza wtedy poprawną rolę (listę ikon pulpitu).
+Rola przechodziła jako „jest gdzie pisać" i panel przestał się pojawiać.
+
+Stąd podział aplikacji na dwie grupy. Dla takich, które opisują się rzetelnie
+(`reliableApps`, na razie sam Finder) **wymagamy trafienia w rolę tekstową**.
+Dla reszty — w tym całego świata Electrona — zostajemy przy domyśle na korzyść
+wpisywania. Do tego lista ról, które tekstu nie przyjmą nigdy: przyciski,
+suwaki, listy, tabele, całe okna.
+
+Sama decyzja siedzi w `TextInjector.decision(role:bundleIdentifier:)`,
+odseparowana od odpytywania systemu, i jest sprawdzana przez `--test-decision`
+czternastoma przypadkami — od pola w Notatkach po pulpit Findera.
 
 Zapytania Accessibility mają limit **0,4 s**. Idą przez IPC do obcej aplikacji,
 a wołamy je przy starcie nagrania — zawieszona aplikacja zjadłaby pierwsze słowa.

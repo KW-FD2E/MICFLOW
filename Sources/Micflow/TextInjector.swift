@@ -33,10 +33,41 @@ final class TextInjector {
     /// wciska przycisk, a więc uruchamia przypadkowe akcje.
     private static let nonTextRoles: Set<String> = [
         "AXButton", "AXCheckBox", "AXRadioButton", "AXPopUpButton",
-        "AXMenuItem", "AXMenuButton", "AXMenuBarItem", "AXSlider",
+        "AXMenuItem", "AXMenuButton", "AXMenuBarItem", "AXMenuBar", "AXSlider",
         "AXStepper", "AXDisclosureTriangle", "AXTabGroup", "AXToolbar",
         "AXScrollBar", "AXImage", "AXProgressIndicator",
+        // Listy, tabele i całe okna — m.in. pulpit Findera.
+        "AXList", "AXTable", "AXOutline", "AXBrowser", "AXCell", "AXRow",
+        "AXStaticText", "AXWindow", "AXApplication",
     ]
+
+    /// Role, które na pewno przyjmują tekst. Używane tylko tam, gdzie aplikacja
+    /// zgłasza wiarygodne role — czyli poza światem Electrona.
+    private static let textRoles: Set<String> = [
+        "AXTextField", "AXTextArea", "AXComboBox", "AXSearchField", "AXWebArea",
+    ]
+
+    /// Aplikacje, którym ufamy, że poprawnie opisują swoje elementy. Dla nich
+    /// wymagamy trafienia w rolę tekstową zamiast domyślać się na korzyść
+    /// wpisywania — inaczej kliknięcie w pulpit uchodziłoby za pole tekstowe.
+    private static let reliableApps: Set<String> = ["com.apple.finder"]
+
+    /// Sama decyzja, odseparowana od odpytywania systemu — dzięki temu
+    /// da się ją sprawdzić testem, bez klikania po ekranie.
+    static func decision(role: String?, bundleIdentifier: String?) -> String? {
+        let reliable = bundleIdentifier.map { reliableApps.contains($0) } ?? false
+
+        guard let role else {
+            // Brak roli zwykle znaczy, że aplikacja ukrywa drzewo Accessibility
+            // (Electron). Wtedy zakładamy, że jest gdzie pisać — ale nie
+            // w aplikacji, o której wiemy, że opisuje się rzetelnie.
+            return reliable ? nil : "nieustalone"
+        }
+
+        if nonTextRoles.contains(role) { return nil }
+        if reliable { return textRoles.contains(role) ? role : nil }
+        return role
+    }
 
     /// Gdzie trafi podyktowany tekst.
     ///
@@ -71,19 +102,21 @@ final class TextInjector {
             AXUIElementSetMessagingTimeout(element, 0.4)
 
             var role: AnyObject?
-            if AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role) == .success,
-               let roleName = role as? String {
-                // Przycisk czy suwak tekstu nie przyjmie, a spacja by go wcisnęła.
-                return nonTextRoles.contains(roleName) ? nil : "\(roleName) w \(name)"
+            let roleName = AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role) == .success
+                ? (role as? String)
+                : nil
+
+            guard let verdict = decision(role: roleName, bundleIdentifier: frontmost.bundleIdentifier) else {
+                return nil
             }
+            return "\(verdict) w \(name)"
         }
 
-        // Nie udało się nic ustalić. Kliknięcie w pulpit wysuwa na wierzch
-        // Findera i wtedy naprawdę nie ma gdzie pisać — w każdym innym wypadku
-        // zakładamy, że jest, bo blokada dotyczy drzewa Accessibility,
-        // a nie samej możliwości wpisywania.
-        if frontmost.bundleIdentifier == "com.apple.finder" { return nil }
-        return "nieustalone w \(name)"
+        // Nie udało się pobrać elementu z fokusem.
+        guard let verdict = decision(role: nil, bundleIdentifier: frontmost.bundleIdentifier) else {
+            return nil
+        }
+        return "\(verdict) w \(name)"
     }
 
     func inject(_ text: String) throws {
