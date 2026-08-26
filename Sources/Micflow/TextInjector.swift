@@ -25,12 +25,23 @@ final class TextInjector {
     /// Wysyła tekst jako zdarzenia klawiatury. Wariant ze schowkiem został
     /// usunięty — był szybszy przy długim tekście, ale na ułamek sekundy
     /// podmieniał zawartość schowka użytkownika.
+    /// Role, które przyjmują wpisywany tekst. `AXWebArea` obejmuje pola
+    /// w przeglądarkach, `AXGroup` — edytory rysujące własne widoki.
+    private static let textRoles: Set<String> = [
+        kAXTextFieldRole, kAXTextAreaRole, kAXComboBoxRole,
+        "AXWebArea", "AXSearchField",
+    ]
+
     /// Czy w aktywnej aplikacji stoi kursor w polu, które przyjmie tekst.
     ///
     /// Decyduje, czy wpisać tekst wprost, czy pokazać panel z możliwością
-    /// skopiowania. Bez tego tekst wpadałby po cichu w próżnię.
-    static func hasFocusedTextField() -> Bool {
-        guard AXIsProcessTrusted() else { return false }
+    /// skopiowania. Celowo przechyla się w stronę wpisywania: panel ma się
+    /// pokazywać wyłącznie wtedy, gdy naprawdę nie ma dokąd pisać.
+    ///
+    /// - Returns: nazwa roli znalezionego elementu albo nil.
+    @discardableResult
+    static func focusedTextRole() -> String? {
+        guard AXIsProcessTrusted() else { return nil }
 
         var focused: AnyObject?
         guard
@@ -40,24 +51,37 @@ final class TextInjector {
                 &focused
             ) == .success,
             let focusedElement = focused
-        else { return false }
+        else { return nil }
 
         let element = focusedElement as! AXUIElement
 
-        // Zakres zaznaczenia udostępniają tylko elementy tekstowe — to najpewniejszy sygnał.
-        var range: AnyObject?
-        if AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &range) == .success {
-            return true
+        // Pomijamy własne okna — pastylka i panel nie są miejscem na tekst.
+        var pid: pid_t = 0
+        if AXUIElementGetPid(element, &pid) == .success, pid == ProcessInfo.processInfo.processIdentifier {
+            return nil
         }
 
-        // Część aplikacji zakresu nie daje, ale deklaruje rolę pola tekstowego.
         var role: AnyObject?
-        guard
-            AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role) == .success,
-            let roleName = role as? String
-        else { return false }
+        let roleName = AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role) == .success
+            ? (role as? String)
+            : nil
 
-        return [kAXTextFieldRole, kAXTextAreaRole, kAXComboBoxRole].contains(roleName)
+        // Zakres zaznaczenia udostępniają tylko elementy tekstowe —
+        // to najpewniejszy sygnał, niezależny od zadeklarowanej roli.
+        var range: AnyObject?
+        if AXUIElementCopyAttributeValue(element, kAXSelectedTextRangeAttribute as CFString, &range) == .success {
+            return roleName ?? "AXTextRange"
+        }
+
+        // Pole, którego wartość da się ustawić, też przyjmie tekst.
+        var settable = DarwinBoolean(false)
+        if AXUIElementIsAttributeSettable(element, kAXValueAttribute as CFString, &settable) == .success,
+           settable.boolValue {
+            return roleName ?? "AXSettableValue"
+        }
+
+        guard let roleName else { return nil }
+        return textRoles.contains(roleName) ? roleName : nil
     }
 
     func inject(_ text: String) throws {

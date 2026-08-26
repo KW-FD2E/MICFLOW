@@ -18,6 +18,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let sounds = SoundFeedback()
     private let indicator = RecordingIndicator()
     private let transcriptPanel = TranscriptPanel()
+
+    /// Czy w chwili rozpoczęcia nagrania kursor stał w polu tekstowym.
+    /// Sprawdzamy wtedy, bo później fokus mógł się zmienić — a użytkownik
+    /// oczekuje tekstu tam, gdzie klikał PRZED dyktowaniem.
+    private var hadTextFieldAtStart = false
     private var hotkeyMenuItems: [HotkeyChoice: NSMenuItem] = [:]
     private var languageMenuItems: [DictationLanguage: NSMenuItem] = [:]
 
@@ -254,6 +259,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         do {
             transcriptPanel.hide()
+
+            let role = TextInjector.focusedTextRole()
+            hadTextFieldAtStart = role != nil
+            NSLog("Pole tekstowe przy starcie: %@", role ?? "brak")
+
             try recorder.start()
             sounds.play(.start)
             startRecordingLimit()
@@ -384,9 +394,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         lastTranscript = text
         indicator.hide()
 
-        // Gdy nie ma gdzie pisać, pokazujemy tekst w panelu zamiast wpychać go
-        // w nieznane miejsce albo chować po cichu w schowku.
-        guard TextInjector.hasFocusedTextField() else {
+        // Panel tylko wtedy, gdy ANI przy starcie, ANI teraz nie było pola
+        // tekstowego. Jedno trafienie wystarczy, żeby wpisać — pomyłka w tę
+        // stronę jest tańsza niż niepotrzebny panel.
+        let roleNow = TextInjector.focusedTextRole()
+        NSLog("Pole tekstowe przy wstawianiu: %@ (przy starcie: %@)",
+              roleNow ?? "brak", hadTextFieldAtStart ? "tak" : "nie")
+
+        guard hadTextFieldAtStart || roleNow != nil else {
             transcriptPanel.show(text: text)
             setStatus("Brak pola tekstowego — tekst w panelu")
             return
