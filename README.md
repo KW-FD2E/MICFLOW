@@ -90,6 +90,10 @@ albo usunąć bez wpływu na działającą aplikację.
 [SPEC.md](SPEC.md) opisuje architekturę, pomiary wydajności i decyzje podjęte
 przy budowie — razem z pułapkami, na które warto uważać przy zmianach.
 
+**Wracasz do projektu po przerwie?** Zacznij od sekcji 9 w SPEC.md: od czego
+zacząć, jak sprawdzić aplikację bez mikrofonu, co zostało otwarte i czego
+nie ruszać bez powodu.
+
 ## Licencja i pochodzenie
 
 Zbudowane od zera. Inspirowane funkcjonalnie przez Wispr Flow, bez użycia jej

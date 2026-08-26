@@ -405,3 +405,81 @@ nieistniejące nagranie.
 Logika jest sprawdzana przez `--test-gestures` na prawdziwym `HotkeyMonitor`,
 czterema scenariuszami. Przy tylu stanach sprawdzenie „na oko" byłoby
 nieodpowiedzialne.
+
+
+---
+
+## 9. Jeśli wracasz do projektu po przerwie
+
+### Od czego zacząć
+
+```bash
+git clone git@github.com:kubawasik-coder/MICFLOW.git && cd MICFLOW
+./scripts/setup.sh          # pobiera zależności, buduje, instaluje
+```
+
+Jeśli projekt już masz, a coś nie działa — **zacznij od Diagnostyki w menu
+aplikacji**. Pokazuje stan każdego elementu osobno, więc od razu widać, który
+krok pipeline'u zawodzi, zamiast zgadywać.
+
+### Sprawdzenie bez mikrofonu i bez uprawnień
+
+Cztery tryby pozwalają zweryfikować większość aplikacji z linii poleceń:
+
+| Polecenie | Co sprawdza |
+|---|---|
+| `--test-pipeline plik.wav [język]` | cały łańcuch: audio → whisper → Bielik |
+| `--test-gestures` | rozpoznawanie przytrzymania i dwukliku |
+| `--test-indicator` | rysuje pastylkę do `/tmp/klatki/podglad-*.png` |
+| `--test-panel` | rysuje panel z tekstem |
+| `--test-focus` | wypisuje na żywo, gdzie trafiłby tekst (wymaga Accessibility) |
+
+Podglądy graficzne wyłapały już dwa błędy, zanim zobaczył je użytkownik —
+warto z nich korzystać przy każdej zmianie wyglądu.
+
+### Co zostało otwarte
+
+**Limit 5 minut nagrania nigdy się nie wykonał.** Kod jest napisany
+i skompilowany, ale nikt nie zostawił nagrywania na tak długo. Jeśli kiedyś
+się nie zadziała, szukaj w `AppDelegate.startRecordingLimit()`.
+
+**Dwa wyścigi wątków w `AudioRecorder`.** `rawInputPeak` i `outputFile` są
+dotykane z wątku audio i z głównego bez synchronizacji. Objaw nie wystąpił
+ani razu, a naprawa wymaga przemeblowania obsługi bufora — świadoma decyzja,
+że ryzyko zepsucia działającego kodu przewyższa zysk.
+
+**Czyszczenie tekstu trwa ~5 s** (Bielik 11B, ~13,6 tok/s — to 86% sufitu
+przepustowości pamięci M3, szybciej się nie da). Rozważany był mniejszy model
+4,5B, ale potrafił zmieniać sens wypowiedzi, więc został usunięty.
+Gdyby opóźnienie zaczęło uwierać, właściwą drogą jest **strumieniowanie do
+plakietki**: tekst pojawiałby się w niej na żywo w miarę generowania, a do pola
+trafiał dopiero w całości. Pełne strumieniowanie wprost do dokumentu jest
+ryzykowne — trwa kilkanaście sekund, w trakcie których kursor może uciec
+do innego okna.
+
+**Podpis ad-hoc unieważnia zgodę Accessibility przy każdej przebudowie.**
+To najbardziej myląca rzecz w całym projekcie, bo w Ustawieniach aplikacja
+nadal wygląda na uprawnioną. Trwałe rozwiązanie: podpisywanie certyfikatem
+z pęku kluczy zamiast ad-hoc — wtedy tożsamość podpisu przestaje zależeć
+od zawartości binarki.
+
+**Ostrzeżenie linkera `macOS-13.0` vs `26.0`.** Biblioteki whisper.cpp budują
+się pod SDK hosta. Nieszkodliwe lokalnie; przy dystrybucji ustawić
+`CMAKE_OSX_DEPLOYMENT_TARGET`.
+
+### Czego NIE ruszać bez powodu
+
+Rzeczy, które wyglądają na zbędne, a nie są — każda kosztowała osobną rundę
+diagnozy:
+
+- **VAD** — bez niego Whisper halucynuje na ciszy („Dzięki za oglądanie")
+  i działa 8× wolniej
+- **`singleLine()`** — znak nowej linii to Enter, czyli wysłanie wiadomości w czacie
+- **`AXManualAccessibility`** — bez tego aplikacje Electronowe nie ujawniają,
+  gdzie stoi kursor
+- **Limit 0,4 s na zapytania Accessibility** — bez niego zawieszona aplikacja
+  zjada pierwsze słowa nagrania
+- **Buforowanie prefiksu promptu** — bez niego każde dyktowanie płaci ~5 s
+  za przeliczenie tych samych 500 tokenów
+- **Rysowanie bez `isFlipped`** — dzięki temu podgląd offscreen pokazuje
+  to samo co ekran
