@@ -88,14 +88,32 @@ final class TextInjector {
             return roleName ?? "AXSettableValue"
         }
 
-        guard let roleName else { return nil }
-        return textRoles.contains(roleName) ? roleName : nil
+        // Aplikacje Electronowe (m.in. Claude) wystawiają szczątkowe drzewo
+        // Accessibility — bywa, że nie ma ani zakresu zaznaczenia, ani znanej
+        // roli. Skoro jednak COŚ ma fokus, jest gdzie pisać. Panel zostawiamy
+        // na przypadek, gdy fokusu nie ma w ogóle.
+        return roleName ?? "AXNieznana"
     }
 
     func inject(_ text: String) throws {
-        guard !text.isEmpty else { return }
+        let safe = Self.singleLine(text)
+        guard !safe.isEmpty else { return }
         guard AXIsProcessTrusted() else { throw InjectorError.noAccessibility }
-        try type(text)
+        try type(safe)
+    }
+
+    /// Zamienia znaki nowej linii na spacje.
+    ///
+    /// `CGEvent` wpisuje znak nowej linii jako naciśnięcie Enter, a w oknach
+    /// czatu Enter wysyła wiadomość — zamiast tekstu szła więc przedwcześnie
+    /// wysłana wypowiedź. Dyktowana mowa i tak rzadko wymaga wielu akapitów,
+    /// a ryzyko przypadkowego wysłania jest zbyt kosztowne.
+    static func singleLine(_ text: String) -> String {
+        text.replacingOccurrences(of: "\r\n", with: " ")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+            .replacingOccurrences(of: "  ", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Wpisywanie znak po znaku

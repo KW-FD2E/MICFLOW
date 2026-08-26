@@ -23,6 +23,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Sprawdzamy wtedy, bo później fokus mógł się zmienić — a użytkownik
     /// oczekuje tekstu tam, gdzie klikał PRZED dyktowaniem.
     private var hadTextFieldAtStart = false
+
+    /// Ostatnio wykryta rola elementu z fokusem — widoczna w Diagnostyce,
+    /// żeby dało się ustalić, czemu w danej aplikacji poszło nie tak.
+    private var lastFocusRole = "—"
     private var hotkeyMenuItems: [HotkeyChoice: NSMenuItem] = [:]
     private var languageMenuItems: [DictationLanguage: NSMenuItem] = [:]
 
@@ -262,7 +266,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             let role = TextInjector.focusedTextRole()
             hadTextFieldAtStart = role != nil
-            NSLog("Pole tekstowe przy starcie: %@", role ?? "brak")
+            lastFocusRole = role ?? "brak fokusu"
+            NSLog("Pole tekstowe przy starcie: %@", lastFocusRole)
 
             try recorder.start()
             sounds.play(.start)
@@ -435,6 +440,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Czyszczenie:    \(cleaner.isReady ? "gotowe" : "NIEGOTOWE")
         Język:          \(language.title)
         Ostatnio wykryty: \(transcriber?.detectedLanguage ?? "—")
+        Element z fokusem: \(lastFocusRole)
         Skrót:          \(hotkeyChoice.title)
         Skrót zadziałał: \(hotkey.pressCount) raz(y)
         Ostatni klawisz: \(hotkey.lastSeenKeyCode.map(String.init) ?? "żaden nie dotarł")
