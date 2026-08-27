@@ -8,8 +8,23 @@ Obsługuje polski i angielski, z automatycznym wykrywaniem języka.
 
 ## Zanim zainwestujesz czas
 
-To narzędzie zbudowane **dla siebie**, udostępnione na wypadek, gdyby przydało
-się komuś jeszcze. Nie jest produktem i nie udaje nim być.
+To narzędzie zbudowane **dla siebie** — po części z ciekawości, po części
+żeby sprawdzić, jak daleko da się zajść bez chmury. Udostępnione na wypadek,
+gdyby przydało się komuś jeszcze. Nie jest produktem i nie udaje nim być.
+
+**Działa solidnie, ale wolniej niż rozwiązania komercyjne.** Po zakończeniu
+mówienia trzeba odczekać kilka sekund, zanim tekst się pojawi. Lwia część tego
+czasu to nie transkrypcja — ta jest szybka — tylko czyszczenie tekstu przez
+model językowy. To cena za to, że wszystko dzieje się na Twoim komputerze:
+tam, gdzie Wispr Flow czy Superwhisper wysyłają nagranie do serwerowni z kartami
+za dziesiątki tysięcy dolarów, tutaj pracuje procesor laptopa.
+
+Nie da się tego istotnie przyspieszyć bez ustępstw. Model działa już na 86%
+teoretycznej przepustowości pamięci M3, a mniejszy wariant, który sprawdzałem,
+potrafił zmieniać sens wypowiedzi — co przy dyktowaniu wiadomości jest
+gorsze niż czekanie. Jeśli zależy Ci na natychmiastowym efekcie, komercyjne
+narzędzia będą lepszym wyborem. Jeśli na tym, żeby Twój głos nigdy nie opuścił
+komputera — to jest właśnie ten kompromis.
 
 **Testowane na jednym komputerze** — MacBook Air M3, macOS 26, polski układ
 klawiatury, jeden użytkownik. Nie wiem, jak zachowa się przy dwóch monitorach,
