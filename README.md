@@ -41,7 +41,7 @@ To najczęstsza przyczyna „przestało działać".
 
 **Modele mają własne licencje**, odrębne od kodu — wszystkie permisywne:
 Whisper i Silero VAD na MIT, Bielik na Apache 2.0. Użycie komercyjne
-i redystrybucja są dozwolone. Szczegóły w [LICENSE](LICENSE).
+i redystrybucja są dozwolone. Szczegóły w [LICENSES-MODELI.md](LICENSES-MODELI.md).
 
 Nie obiecuję wsparcia ani rozwoju. Kod jest na licencji MIT — rób z nim,
 co chcesz.
