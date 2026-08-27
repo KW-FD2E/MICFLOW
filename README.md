@@ -24,8 +24,9 @@ przebudowa unieważnia zgodę na Dostępność, a w Ustawieniach systemowych nad
 wygląda ona na przyznaną. Trzeba wtedy usunąć wpis i dodać go od nowa.
 To najczęstsza przyczyna „przestało działać".
 
-**Modele mają własne licencje**, odrębne od kodu — szczegóły w [LICENSE](LICENSE).
-Przed użyciem komercyjnym sprawdź warunki Bielika, Whispera i Silero VAD osobno.
+**Modele mają własne licencje**, odrębne od kodu — wszystkie permisywne:
+Whisper i Silero VAD na MIT, Bielik na Apache 2.0. Użycie komercyjne
+i redystrybucja są dozwolone. Szczegóły w [LICENSE](LICENSE).
 
 Nie obiecuję wsparcia ani rozwoju. Kod jest na licencji MIT — rób z nim,
 co chcesz.
@@ -127,4 +128,5 @@ Korzysta z [whisper.cpp](https://github.com/ggerganov/whisper.cpp) (MIT),
 [MLX](https://github.com/ml-explore/mlx) (MIT), [Silero VAD](https://github.com/snakers4/silero-vad)
 oraz modelu [Bielik](https://huggingface.co/speakleash) od SpeakLeash.
 
-**Pobierane modele mają własne warunki, niezależne od licencji tego kodu.**
+Pobierane modele mają własne licencje, niezależne od licencji tego kodu —
+Whisper i Silero VAD na MIT, Bielik na Apache 2.0. Wszystkie permisywne.
