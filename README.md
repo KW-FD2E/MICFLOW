@@ -6,6 +6,30 @@ aplikacji. Nagranie nie opuszcza komputera.
 
 Obsługuje polski i angielski, z automatycznym wykrywaniem języka.
 
+## Zanim zainwestujesz czas
+
+To narzędzie zbudowane **dla siebie**, udostępnione na wypadek, gdyby przydało
+się komuś jeszcze. Nie jest produktem i nie udaje nim być.
+
+**Testowane na jednym komputerze** — MacBook Air M3, macOS 26, polski układ
+klawiatury, jeden użytkownik. Nie wiem, jak zachowa się przy dwóch monitorach,
+zewnętrznym mikrofonie czy innej konfiguracji.
+
+**Wymagania są ostre:** Mac z Apple Silicon (na Intelu nie zadziała w ogóle),
+~7 GB miejsca na modele, komfortowo od 16 GB RAM. Nie ma gotowej paczki —
+budujesz ze źródeł.
+
+**Aplikacja jest podpisana ad-hoc**, co ma jedną uciążliwą konsekwencję: każda
+przebudowa unieważnia zgodę na Dostępność, a w Ustawieniach systemowych nadal
+wygląda ona na przyznaną. Trzeba wtedy usunąć wpis i dodać go od nowa.
+To najczęstsza przyczyna „przestało działać".
+
+**Modele mają własne licencje**, odrębne od kodu — szczegóły w [LICENSE](LICENSE).
+Przed użyciem komercyjnym sprawdź warunki Bielika, Whispera i Silero VAD osobno.
+
+Nie obiecuję wsparcia ani rozwoju. Kod jest na licencji MIT — rób z nim,
+co chcesz.
+
 ## Jak to działa
 
 ```
@@ -96,7 +120,11 @@ nie ruszać bez powodu.
 
 ## Licencja i pochodzenie
 
-Zbudowane od zera. Inspirowane funkcjonalnie przez Wispr Flow, bez użycia jej
-kodu. Korzysta z [whisper.cpp](https://github.com/ggerganov/whisper.cpp) (MIT),
-[MLX](https://github.com/ml-explore/mlx) (MIT) oraz modelu
-[Bielik](https://huggingface.co/speakleash) od SpeakLeash.
+Kod na licencji [MIT](LICENSE). Zbudowane od zera — inspirowane funkcjonalnie
+przez Wispr Flow, bez użycia jej kodu.
+
+Korzysta z [whisper.cpp](https://github.com/ggerganov/whisper.cpp) (MIT),
+[MLX](https://github.com/ml-explore/mlx) (MIT), [Silero VAD](https://github.com/snakers4/silero-vad)
+oraz modelu [Bielik](https://huggingface.co/speakleash) od SpeakLeash.
+
+**Pobierane modele mają własne warunki, niezależne od licencji tego kodu.**
